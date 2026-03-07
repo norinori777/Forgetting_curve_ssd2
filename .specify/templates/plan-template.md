@@ -1,104 +1,97 @@
-# Implementation Plan: [FEATURE]
+# 実装計画 (Implementation Plan): [FEATURE]
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**ブランチ (Branch)**: `[###-feature-name]` | **日付 (Date)**: [DATE] | **仕様 (Spec)**: [link]
+**入力 (Input)**: `/specs/[###-feature-name]/spec.md` の機能仕様
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+**注記 (Note)**: このテンプレートは `/speckit.plan` コマンドによって埋められます。実行フローは `.specify/templates/plan-template.md` を参照してください。
 
-## Summary
+## 概要 (Summary)
 
-[Extract from feature spec: primary requirement + technical approach from research]
+[機能仕様から要約: 主要要件 + 調査に基づく技術的なアプローチ]
 
-## Technical Context
+## 技術コンテキスト (Technical Context)
 
 <!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
+  要対応 (ACTION REQUIRED): このセクションの内容を、プロジェクトの技術的な前提に置き換えてください。
+  ここで示す構造は、検討/反復を進めやすくするためのガイドです。
 -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**言語/バージョン (Language/Version)**: [例: TypeScript（Node.js）または NEEDS CLARIFICATION]  
+**フロントエンド (Frontend)**: [例: React または NEEDS CLARIFICATION]  
+**バックエンド (Backend)**: [例: Node.js / Express.js または NEEDS CLARIFICATION]  
+**UIカタログ/コンポーネント開発 (Storybook)**: [例: Storybook または NEEDS CLARIFICATION]  
+**CSS**: [例: Tailwind CSS または NEEDS CLARIFICATION]  
+**ORM**: [例: Prisma または NEEDS CLARIFICATION]  
+**ストレージ (Storage / DB)**: [例: PostgreSQL または N/A]  
+**テスト (Testing)**: [例: Vitest/Jest/Playwright 等 または NEEDS CLARIFICATION]  
+**テスト実施方法**: テストの実施手順・方式・ケース定義はリポジトリルートの `test.md` に記載します。  
+**対象プラットフォーム (Target Platform)**: [例: Web（ブラウザ）+ サーバ（Node.js）または NEEDS CLARIFICATION]  
+**プロジェクト種別 (Project Type)**: [例: Web application または NEEDS CLARIFICATION]  
+**性能目標 (Performance Goals)**: [ドメイン依存: 例 1000 req/s, 10k lines/sec, 60 fps または NEEDS CLARIFICATION]  
+**制約 (Constraints)**: [ドメイン依存: 例 <200ms p95, <100MB memory, offline-capable または NEEDS CLARIFICATION]  
+**規模/スコープ (Scale/Scope)**: [ドメイン依存: 例 10k users, 1M LOC, 50 screens または NEEDS CLARIFICATION]
 
-## Constitution Check
+## 憲法チェック (Constitution Check)
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*ゲート (GATE): Phase 0 の調査前に必ず通過すること。Phase 1 の設計後に再チェックすること。*
 
-[Gates determined based on constitution file]
+[憲法ファイルに基づいて決まるゲート条件]
 
-## Project Structure
+## プロジェクト構造 (Project Structure)
 
-### Documentation (this feature)
+### ドキュメント (本機能 / Documentation)
 
 ```text
 specs/[###-feature]/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+├── plan.md              # このファイル (/speckit.plan の出力)
+├── research.md          # Phase 0 の出力 (/speckit.plan)
+├── data-model.md        # Phase 1 の出力 (/speckit.plan)
+├── quickstart.md        # Phase 1 の出力 (/speckit.plan)
+├── contracts/           # Phase 1 の出力 (/speckit.plan)
+└── tasks.md             # Phase 2 の出力 (/speckit.tasks) ※/speckit.plan では作られない
 ```
 
-### Source Code (repository root)
+### ソースコード (リポジトリルート / Source Code)
 <!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
+  要対応 (ACTION REQUIRED): 下記のツリーは推奨の初期構成例です。
+  リポジトリの実態に合わせて調整し、最終的な plan.md では実在するパスのみを記載してください。
 -->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
 backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
+├── api/          # APIエンドポイント
+├── services/     # ビジネスロジック
+├── repositories/ # データアクセス
+├── domain/       # ドメインモデル
+└── utils/        # ユーティリティ
 
 frontend/
+├── .storybook/       # Storybook設定
+├── public/           # 静的ファイル
 ├── src/
+│   ├── assets/       # 画像などのアセット
+│   ├── contents/     # ページ表示基盤の紐づけ情報を格納
+│   ├── pages/        # ページ(画面)
 │   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+│   │   ├── uiParts/      # 汎用UI部品
+│   │   └── uniqueParts/  # 画面固有部品
+│   ├── hooks/        # React hooks
+│   ├── services/
+│   │   └── api/      # API呼び出し
+│   ├── domain/       # DTO/ドメイン型
+│   └── utils/
+│       └── theme/    # テーマ関連
+├── dist/             # ビルド成果物
+└── storybook-static/ # Storybookビルド成果物
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**構造の決定 (Structure Decision)**: [採用した構造を記述し、上で列挙した実パスを参照する（例: backend/frontend 分離 + Storybook）]
 
-## Complexity Tracking
+## 複雑性トラッキング (Complexity Tracking)
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
+> **憲法チェックで違反があり、正当化が必要な場合のみ記入する**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| 違反 (Violation) | 必要な理由 (Why Needed) | 単純案を採用しない理由 (Simpler Alternative Rejected Because) |
+|------------------|-------------------------|--------------------------------------------------------------|
+| [例: 4つ目のプロジェクト] | [現状の必要性] | [なぜ3つでは足りないか] |
+| [例: Repository パターン] | [具体的な課題] | [なぜDB直アクセスではダメか] |

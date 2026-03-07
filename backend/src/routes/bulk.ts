@@ -1,0 +1,43 @@
+import { Router } from 'express';
+
+import { bulkRequestSchema } from '../schemas/bulk.js';
+import {
+  addTagsToCards,
+  archiveCards,
+  deleteCards,
+  removeTagsFromCards,
+} from '../repositories/cardRepository.js';
+
+export const bulkRouter = Router();
+
+bulkRouter.post('/', async (req, res) => {
+  const parsed = bulkRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'invalid_body', details: parsed.error.flatten() });
+  }
+
+  const { action, cardIds, tags } = parsed.data;
+
+  if ((action === 'addTags' || action === 'removeTags') && (!tags || tags.length === 0)) {
+    return res.status(400).json({ error: 'invalid_body', message: 'tags is required for tag actions' });
+  }
+
+  switch (action) {
+    case 'archive': {
+      const archived = await archiveCards(cardIds);
+      return res.json({ ok: true, archived });
+    }
+    case 'delete': {
+      const deleted = await deleteCards(cardIds);
+      return res.json({ ok: true, deleted });
+    }
+    case 'addTags': {
+      await addTagsToCards(cardIds, tags!);
+      return res.json({ ok: true });
+    }
+    case 'removeTags': {
+      const removed = await removeTagsFromCards(cardIds, tags!);
+      return res.json({ ok: true, removed });
+    }
+  }
+});
