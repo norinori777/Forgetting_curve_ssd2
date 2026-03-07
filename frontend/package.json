@@ -1,0 +1,27 @@
+{
+  "name": "@forgetting-curve/frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "test": "vitest run --root .. --config vitest.config.ts",
+    "lint": "eslint .",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@storybook/addon-essentials": "^8.6.18",
+    "@storybook/react-vite": "^8.6.18",
+    "@vitejs/plugin-react": "^4.3.1",
+    "storybook": "^8.6.18",
+    "vite": "^5.3.5"
+  }
+}

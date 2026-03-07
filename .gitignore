@@ -1,0 +1,21 @@
+# Node / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+**/storybook-static/
+*.log
+
+# Env
+.env
+.env.*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Misc
+*.tmp
+*.swp

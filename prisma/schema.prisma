@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Card {
+  id              String      @id @default(uuid()) @db.Uuid
+  title           String
+  content         String      @db.Text
+  collectionId    String?     @db.Uuid @map("collection_id")
+  collection      Collection? @relation(fields: [collectionId], references: [id])
+  proficiency     Int
+  nextReviewAt    DateTime    @map("next_review_at")
+  lastCorrectRate Float       @map("last_correct_rate")
+  isArchived      Boolean     @default(false) @map("is_archived")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  tags            CardTag[]
+
+  @@index([nextReviewAt, id])
+  @@index([collectionId])
+  @@index([isArchived])
+  @@map("cards")
+}
+
+model Tag {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @unique
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  cards     CardTag[]
+
+  @@map("tags")
+}
+
+model Collection {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  ownerId   String   @db.Uuid @map("owner_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cards     Card[]
+
+  @@index([ownerId])
+  @@map("collections")
+}
+
+model CardTag {
+  cardId String @db.Uuid @map("card_id")
+  tagId  String @db.Uuid @map("tag_id")
+
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, tagId])
+  @@index([cardId])
+  @@index([tagId])
+  @@map("card_tags")
+}

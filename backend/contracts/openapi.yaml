@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: Card List API (specs/001-card-list)
+  version: '0.1.0'
+paths:
+  /api/cards:
+    get:
+      summary: List cards with cursor pagination and filters
+      parameters:
+        - in: query
+          name: cursor
+          schema:
+            type: string
+          description: Cursor token (opaque, from previous response)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Full-text search query (title/content)
+        - in: query
+          name: tags
+          schema:
+            type: string
+          description: Comma-separated tag names or ids
+        - in: query
+          name: collection
+          schema:
+            type: string
+          description: collection id
+        - in: query
+          name: filter
+          schema:
+            type: string
+          description: pre-defined filters (e.g., today, overdue, unlearned)
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [next_review_at, proficiency, created_at]
+          description: sort key
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Card'
+                  nextCursor:
+                    type: string
+                    description: opaque cursor to fetch next page
+  /api/cards/bulk:
+    post:
+      summary: Bulk operations on cards (archive, delete, addTags, removeTags)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum: [archive, delete, addTags, removeTags]
+                cardIds:
+                  type: array
+                  items:
+                    type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: OK
+  /api/review/start:
+    post:
+      summary: Start a review session based on current filter or explicit card ids
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filter:
+                  type: object
+                  description: filter object matching /api/cards query params (used when cardIds omitted)
+                cardIds:
+                  type: array
+                  items:
+                    type: string
+                  description: optional explicit list of cards; if omitted, `filter` is applied
+      responses:
+        '200':
+          description: OK
+components:
+  schemas:
+    Card:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        collectionId:
+          type: string
+          nullable: true
+        proficiency:
+          type: number
+        nextReviewAt:
+          type: string
+          format: date-time
+        lastCorrectRate:
+          type: number
+        isArchived:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
