@@ -19,6 +19,14 @@ export type ApiCard = {
   updatedAt: string;
 };
 
+type CardWithTags = Prisma.CardGetPayload<{
+  include: {
+    tags: {
+      include: { tag: true };
+    };
+  };
+}>;
+
 function buildCursorWhere(sort: CardSortKey, cursor: CursorPayload): Prisma.CardWhereInput {
   if (cursor.sort !== sort) {
     throw new Error('Cursor sort does not match requested sort');
@@ -52,12 +60,12 @@ function buildOrderBy(sort: CardSortKey): Prisma.CardOrderByWithRelationInput[] 
   return [{ nextReviewAt: 'asc' }, { id: 'asc' }];
 }
 
-function toApiCard(card: any): ApiCard {
+function toApiCard(card: CardWithTags): ApiCard {
   return {
     id: card.id,
     title: card.title,
     content: card.content,
-    tags: (card.tags ?? []).map((ct: any) => ct.tag?.name).filter(Boolean),
+    tags: (card.tags ?? []).map((ct) => ct.tag?.name).filter((t): t is string => typeof t === 'string'),
     collectionId: card.collectionId,
     proficiency: card.proficiency,
     nextReviewAt: card.nextReviewAt.toISOString(),

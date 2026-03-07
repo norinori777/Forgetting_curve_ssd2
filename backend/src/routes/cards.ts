@@ -14,7 +14,8 @@ cardsRouter.get('/', async (req, res) => {
   try {
     const result = await listCards(parsed.data);
     return res.json(result);
-  } catch (err: any) {
-    return res.status(400).json({ error: 'bad_request', message: err?.message ?? 'unknown error' });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'unknown error';
+    return res.status(400).json({ error: 'bad_request', message });
   }
 });

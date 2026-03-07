@@ -35,10 +35,29 @@ type ReviewStartResponse = {
   cardIds: string[];
 };
 
+type ExtraFilter = 'none' | 'overdue' | 'unlearned';
+type SortKey = 'next_review_at' | 'proficiency' | 'created_at';
+
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === 'string' && err.trim().length > 0) return err;
+  return fallback;
+}
+
+function resolveExtraFilter(value: string): ExtraFilter {
+  if (value === 'none' || value === 'overdue' || value === 'unlearned') return value;
+  return 'none';
+}
+
+function resolveSort(value: string): SortKey {
+  if (value === 'next_review_at' || value === 'proficiency' || value === 'created_at') return value;
+  return 'next_review_at';
+}
+
 export function CardList() {
   const [todayOnly, setTodayOnly] = useState(false);
-  const [extraFilter, setExtraFilter] = useState<'none' | 'overdue' | 'unlearned'>('none');
-  const [sort, setSort] = useState<'next_review_at' | 'proficiency' | 'created_at'>('next_review_at');
+  const [extraFilter, setExtraFilter] = useState<ExtraFilter>('none');
+  const [sort, setSort] = useState<SortKey>('next_review_at');
   const [q, setQ] = useState('');
   const [tags, setTags] = useState('');
   const [collection, setCollection] = useState('');
@@ -69,7 +88,7 @@ export function CardList() {
     return JSON.stringify({ filterParam, sort, q, tags, collection });
   }, [filterParam, sort, q, tags, collection]);
 
-  async function fetchPage(cursor: string | undefined, replace: boolean) {
+  async function fetchPage(cursor?: string) {
     const params = new URLSearchParams();
     params.set('limit', '50');
     params.set('sort', sort);
@@ -94,13 +113,13 @@ export function CardList() {
       setReviewSession(null);
 
       try {
-        const data = await fetchPage(undefined, true);
+        const data = await fetchPage();
         if (cancelled) return;
         setCards(data.items ?? []);
         setNextCursor(data.nextCursor);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
-        setInitialError(e?.message ?? 'failed to load');
+        setInitialError(getErrorMessage(e, 'failed to load'));
       } finally {
         if (!cancelled) setInitialLoading(false);
       }
@@ -129,13 +148,13 @@ export function CardList() {
         setMoreLoading(true);
         setMoreError(null);
 
-        void fetchPage(nextCursor, false)
+        void fetchPage(nextCursor)
           .then((data) => {
             setCards((prev) => [...prev, ...(data.items ?? [])]);
             setNextCursor(data.nextCursor);
           })
-          .catch((e: any) => {
-            setMoreError(e?.message ?? 'failed to load more');
+          .catch((e: unknown) => {
+            setMoreError(getErrorMessage(e, 'failed to load more'));
           })
           .finally(() => {
             setMoreLoading(false);
@@ -153,11 +172,11 @@ export function CardList() {
     setInitialError(null);
 
     try {
-      const data = await fetchPage(undefined, true);
+      const data = await fetchPage();
       setCards(data.items ?? []);
       setNextCursor(data.nextCursor);
-    } catch (e: any) {
-      setInitialError(e?.message ?? 'failed to load');
+    } catch (e: unknown) {
+      setInitialError(getErrorMessage(e, 'failed to load'));
     } finally {
       setInitialLoading(false);
     }
@@ -183,8 +202,8 @@ export function CardList() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as ReviewStartResponse;
       setReviewSession(data);
-    } catch (e: any) {
-      setMoreError(e?.message ?? 'failed to start review');
+    } catch (e: unknown) {
+      setMoreError(getErrorMessage(e, 'failed to start review'));
     }
   }
 
@@ -197,8 +216,8 @@ export function CardList() {
       await bulkAction('archive', Array.from(selection.selectedIds));
       selection.clear();
       await retryInitial();
-    } catch (e: any) {
-      setMoreError(e?.message ?? 'failed to archive');
+    } catch (e: unknown) {
+      setMoreError(getErrorMessage(e, 'failed to archive'));
     } finally {
       setBulkWorking(false);
     }
@@ -214,8 +233,8 @@ export function CardList() {
       setDeleteModalOpen(false);
       selection.clear();
       await retryInitial();
-    } catch (e: any) {
-      setMoreError(e?.message ?? 'failed to delete');
+    } catch (e: unknown) {
+      setMoreError(getErrorMessage(e, 'failed to delete'));
     } finally {
       setBulkWorking(false);
     }
@@ -241,7 +260,7 @@ export function CardList() {
           追加フィルタ
           <select
             value={extraFilter}
-            onChange={(e) => setExtraFilter(e.currentTarget.value as any)}
+            onChange={(e) => setExtraFilter(resolveExtraFilter(e.currentTarget.value))}
             disabled={todayOnly}
           >
             <option value="none">なし</option>
@@ -256,7 +275,7 @@ export function CardList() {
 
         <label>
           ソート
-          <select value={sort} onChange={(e) => setSort(e.currentTarget.value as any)}>
+          <select value={sort} onChange={(e) => setSort(resolveSort(e.currentTarget.value))}>
             <option value="next_review_at">次回復習日時</option>
             <option value="proficiency">習熟度</option>
             <option value="created_at">作成日</option>

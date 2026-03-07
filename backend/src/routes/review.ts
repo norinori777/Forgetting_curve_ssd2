@@ -7,6 +7,13 @@ import { listCards } from '../repositories/cardRepository.js';
 
 export const reviewRouter = Router();
 
+function resolveSort(value: unknown): 'next_review_at' | 'proficiency' | 'created_at' {
+  if (value === 'next_review_at' || value === 'proficiency' || value === 'created_at') {
+    return value;
+  }
+  return 'next_review_at';
+}
+
 reviewRouter.post('/start', async (req, res) => {
   const parsed = reviewStartRequestSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -26,7 +33,7 @@ reviewRouter.post('/start', async (req, res) => {
             tags: typeof filter?.tags === 'string' ? filter.tags : undefined,
             collection: typeof filter?.collection === 'string' ? filter.collection : undefined,
             filter: typeof filter?.filter === 'string' ? filter.filter : undefined,
-            sort: (filter?.sort as any) ?? 'next_review_at',
+            sort: resolveSort(filter?.sort),
           })
         ).items.map((c) => c.id);
 
