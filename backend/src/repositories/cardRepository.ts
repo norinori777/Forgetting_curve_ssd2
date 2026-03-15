@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 
 import { prisma } from '../db/prisma.js';
+import type { FilterOption } from '../domain/cardList.js';
 import type { CardSortKey, CursorPayload, ListCardsQuery } from '../schemas/cards.js';
 import { decodeCursor, encodeCursor } from '../schemas/cards.js';
 import { buildCardBaseFilters } from '../services/searchService.js';
@@ -173,4 +174,40 @@ export async function getCardsByIds(cardIds: string[]): Promise<ApiCard[]> {
   });
 
   return rows.map(toApiCard);
+}
+
+export async function searchTagOptions(q?: string, limit = 20): Promise<FilterOption[]> {
+  const tags = await prisma.tag.findMany({
+    where: q
+      ? {
+          name: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        }
+      : undefined,
+    orderBy: { name: 'asc' },
+    take: limit,
+    select: { id: true, name: true },
+  });
+
+  return tags.map((tag) => ({ id: tag.id, label: tag.name, matchedBy: 'name' }));
+}
+
+export async function searchCollectionOptions(q?: string, limit = 20): Promise<FilterOption[]> {
+  const collections = await prisma.collection.findMany({
+    where: q
+      ? {
+          name: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        }
+      : undefined,
+    orderBy: { name: 'asc' },
+    take: limit,
+    select: { id: true, name: true },
+  });
+
+  return collections.map((collection) => ({ id: collection.id, label: collection.name, matchedBy: 'name' }));
 }

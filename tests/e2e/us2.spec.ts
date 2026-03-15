@@ -4,7 +4,7 @@ test('US2: 検索/タグ絞り込み/ソートで一覧が変わる', async ({ p
   await page.route('**/api/cards**', async (route) => {
     const url = new URL(route.request().url());
     const q = url.searchParams.get('q') ?? '';
-    const tags = url.searchParams.get('tags') ?? '';
+    const tagIds = url.searchParams.get('tagIds') ?? '';
     const sort = url.searchParams.get('sort') ?? 'next_review_at';
 
     let items: any[] = [
@@ -41,7 +41,7 @@ test('US2: 検索/タグ絞り込み/ソートで一覧が変わる', async ({ p
       ];
     }
 
-    if (tags.includes('tag1')) {
+    if (tagIds.includes('tag1')) {
       items = [
         {
           id: 't1',
@@ -84,6 +84,22 @@ test('US2: 検索/タグ絞り込み/ソートで一覧が変わる', async ({ p
     });
   });
 
+  await page.route('**/api/tags**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [{ id: 'tag1', label: 'tag1' }] }),
+    });
+  });
+
+  await page.route('**/api/collections**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [{ id: 'col1', label: 'col1' }] }),
+    });
+  });
+
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Base' })).toBeVisible();
 
@@ -91,8 +107,11 @@ test('US2: 検索/タグ絞り込み/ソートで一覧が変わる', async ({ p
   await page.waitForTimeout(350);
   await expect(page.getByRole('heading', { name: 'Apple' })).toBeVisible();
 
-  await page.getByLabel('タグ').fill('tag1');
+  await page.getByRole('button', { name: 'タグを選択' }).click();
+  await page.getByRole('dialog', { name: 'tag-filter-modal' }).getByText('tag1').click();
+  await page.getByRole('button', { name: '適用' }).click();
   await expect(page.getByRole('heading', { name: 'Tagged' })).toBeVisible();
+  await expect(page.getByLabel('filters').getByText('tag1')).toBeVisible();
 
   await page.getByLabel('ソート').selectOption('created_at');
   await expect(page.getByRole('heading', { name: 'Sorted by created_at' })).toBeVisible();

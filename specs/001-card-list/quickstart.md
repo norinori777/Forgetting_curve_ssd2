@@ -1,54 +1,59 @@
- # クイックスタート
+# クイックスタート
 
-このディレクトリは機能 `001-card-list` の実装およびテストを始めるための最小手順を示します。
+このドキュメントは、機能 `001-card-list` を既存モノレポへ実装するための最小手順です。今回の設計では、Tailwind CSS と `theme.json` によるトークン駆動 UI を前提にしています。
 
-前提:
-- Node.js と npm/yarn（バージョンは Phase 1 で確定）
-- PostgreSQL（ローカル環境）
+## 前提
 
-手順:
+- Node.js 18 以上
+- npm
+- PostgreSQL
+- `DATABASE_URL` が利用可能
 
-1. リポジトリをクローン
-
-2. 依存関係をインストール（プロジェクトルートで）
+## 1. 依存関係をインストール
 
 ```bash
-# Node.js (>=18) 前提
 npm install
 ```
 
-3. データベースを作成してマイグレーションを実行（例: Prisma を使う場合）
+## 2. Prisma クライアント生成と DB マイグレーション
 
 ```bash
-# 例: PostgreSQL
-# DATABASE_URL を設定してください（.env を使う場合はプロジェクトルートに作成）
-# 例: postgresql://USER:PASSWORD@localhost:5432/forgetting_curve_dev?schema=public
-
 npx prisma generate
 npx prisma migrate dev --name init
 ```
 
-4. 開発サーバを起動（バックエンドとフロントエンド）
+## 3. フロントエンドへ Tailwind CSS を導入
+
+実装時点で未導入の場合は、`frontend` workspace に Tailwind を追加します。
 
 ```bash
-# バックエンド
+npm --workspace frontend install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+```
+
+## 4. `theme.json` を Tailwind に接続
+
+- `frontend/tailwind.config.ts` を作成し、`specs/001-card-list/theme.json` を import して `theme.extend` に反映する
+- `frontend/src/index.css` などのエントリ CSS に Tailwind directive を追加する
+- `ascii_ui.txt` の画面構成に合わせて `CardList`、タグ選択モーダル、コレクション選択モーダルを Tailwind クラスで再構成する
+
+## 5. 開発サーバ起動
+
+```bash
 npm run dev:server
-# フロントエンド
 npm run dev:client
 ```
 
-5. E2E テストを実行
+## 6. テスト実行
 
 ```bash
-# フロントを起動した状態で（別ターミナルで）
-npx playwright test
+npm run test
+npm run test:e2e
 ```
 
-6. ユニットテストを実行
+## 7. 実装完了の確認ポイント
 
-```bash
-# backend + frontend のユニットテスト（Vitest）
-npm --workspace backend run test
-```
-
-注: 上記は推奨スタックに基づく例です。リポジトリの実態に合わせてコマンドやツールを調整してください。
+- 一覧画面が `ascii_ui.txt` の構成に整合している
+- 色、余白、角丸、フォント、ブレークポイントが `theme.json` のトークンで表現されている
+- タグ/コレクションの複数選択モーダルが検索付きで動作する
+- 検索、フィルタ、ソート、無限スクロール、バルク操作、削除確認、復習開始の挙動が既存仕様から変化していない

@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+function csvToArray(value: unknown): string[] | undefined {
+  if (typeof value !== 'string') return undefined;
+
+  const items = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  return items.length > 0 ? items : undefined;
+}
+
 export const cardSortKeySchema = z
   .enum(['next_review_at', 'proficiency', 'created_at'])
   .default('next_review_at');
@@ -8,8 +19,8 @@ export const listCardsQuerySchema = z.object({
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   q: z.string().trim().min(1).optional(),
-  tags: z.string().trim().min(1).optional(),
-  collection: z.string().trim().min(1).optional(),
+  tagIds: z.preprocess(csvToArray, z.array(z.string().min(1)).optional()),
+  collectionIds: z.preprocess(csvToArray, z.array(z.string().min(1)).optional()),
   filter: z.string().trim().min(1).optional(),
   sort: cardSortKeySchema,
 });

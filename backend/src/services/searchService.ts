@@ -11,8 +11,8 @@ function utcTodayRange(now: Date): { start: Date; end: Date } {
 export function buildCardBaseFilters(query: ListCardsQuery, now = new Date()): Prisma.CardWhereInput[] {
 	const and: Prisma.CardWhereInput[] = [{ isArchived: false }];
 
-	if (query.collection) {
-		and.push({ collectionId: query.collection });
+	if (query.collectionIds && query.collectionIds.length > 0) {
+		and.push({ collectionId: { in: query.collectionIds } });
 	}
 
 	if (query.q) {
@@ -24,21 +24,14 @@ export function buildCardBaseFilters(query: ListCardsQuery, now = new Date()): P
 		});
 	}
 
-	if (query.tags) {
-		const tags = query.tags
-			.split(',')
-			.map((t) => t.trim())
-			.filter(Boolean);
-
-		if (tags.length > 0) {
-			and.push({
-				tags: {
-					some: {
-						OR: [{ tag: { name: { in: tags } } }, { tagId: { in: tags } }],
-					},
+	if (query.tagIds && query.tagIds.length > 0) {
+		and.push({
+			tags: {
+				some: {
+					OR: [{ tag: { name: { in: query.tagIds } } }, { tagId: { in: query.tagIds } }],
 				},
-			});
-		}
+			},
+		});
 	}
 
 	if (query.filter === 'today') {
