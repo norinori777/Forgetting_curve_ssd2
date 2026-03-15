@@ -10,7 +10,7 @@ export const bulkActionSchema = z.enum([
 export const bulkRequestSchema = z.object({
   action: bulkActionSchema,
   cardIds: z.array(z.string().min(1)).min(1),
-  tags: z.array(z.string().min(1)).optional(),
+  tagIds: z.array(z.string().min(1)).optional(),
 });
 
 export type BulkRequest = z.infer<typeof bulkRequestSchema>;

@@ -1,0 +1,58 @@
+{
+  "meta": {
+    "format": "tailwindcss",
+    "description": "Tailwind theme extension generated from extracted design tokens"
+  },
+  "tailwind": {
+    "theme": {
+      "extend": {
+        "colors": {
+          "text": {
+            "primary": "rgb(0, 0, 0)",
+            "secondary": "rgb(85, 85, 85)",
+            "inverse": "rgb(255, 255, 255)"
+          },
+          "surface": {
+            "base": "rgb(255, 255, 255)",
+            "muted": "rgb(240, 240, 238)",
+            "accent": "rgb(45, 140, 60)",
+            "dark": "rgb(0, 0, 0)"
+          }
+        },
+        "fontFamily": {
+          "body": [
+            "YuGothic",
+            "ヒラギノ角ゴ ProN W3",
+            "Lucida Grande",
+            "sans-serif"
+          ],
+          "heading": [
+            "CA Sans",
+            "YuGothic",
+            "ヒラギノ角ゴ ProN W3",
+            "sans-serif"
+          ]
+        },
+        "fontSize": {
+          "s1": "16px",
+          "s2": "15px",
+          "s3": "14px"
+        },
+        "spacing": {
+          "space-1": "6px",
+          "space-2": "10px",
+          "space-3": "2px"
+        },
+        "borderRadius": {
+          "pill": "50px",
+          "round": "50%"
+        },
+        "screens": {
+          "xs": "400px",
+          "md": "769px",
+          "lg": "1024px"
+        }
+      }
+    }
+  }
+}

@@ -21,13 +21,14 @@ type CardTagRow = { cardId: string; tagId: string };
 type Store = {
   cards: CardRow[];
   tags: TagRow[];
+  collections: Array<{ id: string; name: string }>;
   cardTags: CardTagRow[];
 };
 
 let store: Store;
 
 function makeStore(): Store {
-  return { cards: [], tags: [], cardTags: [] };
+  return { cards: [], tags: [], collections: [], cardTags: [] };
 }
 
 function compareAsc(a: any, b: any): number {
@@ -213,9 +214,25 @@ function createFakePrisma(getStore: () => Store) {
       },
       findMany: async (args: any) => {
         const s = getStore();
+        if (args.where?.name?.contains) {
+          const needle = String(args.where.name.contains).toLowerCase();
+          return s.tags.filter((t) => t.name.toLowerCase().includes(needle)).slice(0, args.take ?? s.tags.length);
+        }
         const names = args.where?.OR?.[0]?.name?.in ?? [];
         const ids = args.where?.OR?.[1]?.id?.in ?? [];
         return s.tags.filter((t) => names.includes(t.name) || ids.includes(t.id));
+      },
+    },
+    collection: {
+      findMany: async (args: any) => {
+        const s = getStore();
+        if (args.where?.name?.contains) {
+          const needle = String(args.where.name.contains).toLowerCase();
+          return s.collections
+            .filter((c) => c.name.toLowerCase().includes(needle))
+            .slice(0, args.take ?? s.collections.length);
+        }
+        return s.collections.slice(0, args.take ?? s.collections.length);
       },
     },
     cardTag: {
@@ -294,8 +311,8 @@ describe('backend cards API', () => {
       cursor: undefined,
       limit: 2,
       q: undefined,
-      tags: undefined,
-      collection: undefined,
+      tagIds: undefined,
+      collectionIds: undefined,
       filter: undefined,
       sort: 'next_review_at',
     });
@@ -307,8 +324,8 @@ describe('backend cards API', () => {
       cursor: page1.nextCursor,
       limit: 2,
       q: undefined,
-      tags: undefined,
-      collection: undefined,
+      tagIds: undefined,
+      collectionIds: undefined,
       filter: undefined,
       sort: 'next_review_at',
     });
@@ -365,8 +382,8 @@ describe('backend cards API', () => {
       cursor: undefined,
       limit: 50,
       q: undefined,
-      tags: undefined,
-      collection: undefined,
+      tagIds: undefined,
+      collectionIds: undefined,
       filter: 'today',
       sort: 'next_review_at',
     });
@@ -432,5 +449,50 @@ describe('backend cards API', () => {
     expect(res.body.ok).toBe(true);
     expect(res.body.deleted).toBe(2);
     expect(store.cards.map((c) => c.id)).toEqual(['c2']);
+  });
+
+  it('filters cards by tagIds', async () => {
+    const { listCards } = await import('../../backend/src/repositories/cardRepository.ts');
+
+    store.cards = [
+      {
+        id: 'c1',
+        title: 'Tagged',
+        content: 'first',
+        collectionId: null,
+        proficiency: 1,
+        nextReviewAt: new Date('2026-03-07T00:00:00.000Z'),
+        lastCorrectRate: 0.1,
+        isArchived: false,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      },
+      {
+        id: 'c2',
+        title: 'Untagged',
+        content: 'second',
+        collectionId: null,
+        proficiency: 2,
+        nextReviewAt: new Date('2026-03-08T00:00:00.000Z'),
+        lastCorrectRate: 0.2,
+        isArchived: false,
+        createdAt: new Date('2026-03-02T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-02T00:00:00.000Z'),
+      },
+    ];
+    store.tags = [{ id: 'tag1', name: 'tag1' }];
+    store.cardTags = [{ cardId: 'c1', tagId: 'tag1' }];
+
+    const result = await listCards({
+      cursor: undefined,
+      limit: 50,
+      q: undefined,
+      tagIds: ['tag1'],
+      collectionIds: undefined,
+      filter: undefined,
+      sort: 'next_review_at',
+    });
+
+    expect(result.items.map((item) => item.id)).toEqual(['c1']);
   });
 });

@@ -1,34 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { CardItem } from '../components/CardItem';
-import { CollectionSelector } from '../components/CollectionSelector';
-import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
-import { SearchBar } from '../components/SearchBar';
-import { SelectionBar } from '../components/SelectionBar';
-import { TodayFilter } from '../components/filters/TodayFilter';
-import { StartReviewButton } from '../components/StartReviewButton';
-import { TagFilter } from '../components/TagFilter';
+import type { ApiCard, CardFilterKey, CardListFilter } from '../domain/cardList';
+import { bulkAction } from '../services/api/bulkApi';
+import { fetchCards } from '../services/api/cardListApi';
+import { fetchCollectionOptions, fetchTagOptions } from '../services/api/filterOptionsApi';
+import { startReview as startReviewRequest } from '../services/api/reviewApi';
+import { AsyncState } from '../components/uiParts/AsyncState';
+import { RetryBanner } from '../components/uiParts/RetryBanner';
+import { SearchBar } from '../components/uiParts/SearchBar';
+import { SelectionBar } from '../components/uiParts/SelectionBar';
+import { StartReviewButton } from '../components/uiParts/StartReviewButton';
+import { CardItem } from '../components/uniqueParts/CardItem';
+import { CollectionSelector } from '../components/uniqueParts/CollectionSelector';
+import { CollectionSelectorModal } from '../components/uniqueParts/CollectionSelectorModal';
+import { DeleteConfirmModal } from '../components/uniqueParts/DeleteConfirmModal';
+import { TagFilter } from '../components/uniqueParts/TagFilter';
+import { TagFilterModal } from '../components/uniqueParts/TagFilterModal';
+import { TodayFilter } from '../components/uniqueParts/TodayFilter';
 import { useSelection } from '../hooks/useSelection';
-import { bulkAction } from '../services/bulkService';
-
-export type ApiCard = {
-  id: string;
-  title: string;
-  content: string;
-  tags: string[];
-  collectionId: string | null;
-  proficiency: number;
-  nextReviewAt: string;
-  lastCorrectRate: number;
-  isArchived: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type ListCardsResponse = {
-  items: ApiCard[];
-  nextCursor?: string;
-};
 
 type ReviewStartResponse = {
   sessionId: string;
@@ -59,8 +48,12 @@ export function CardList() {
   const [extraFilter, setExtraFilter] = useState<ExtraFilter>('none');
   const [sort, setSort] = useState<SortKey>('next_review_at');
   const [q, setQ] = useState('');
-  const [tags, setTags] = useState('');
-  const [collection, setCollection] = useState('');
+  const [tagIds, setTagIds] = useState<string[]>([]);
+  const [collectionIds, setCollectionIds] = useState<string[]>([]);
+  const [tagLabels, setTagLabels] = useState<string[]>([]);
+  const [collectionLabels, setCollectionLabels] = useState<string[]>([]);
+  const [tagModalOpen, setTagModalOpen] = useState(false);
+  const [collectionModalOpen, setCollectionModalOpen] = useState(false);
 
   const [cards, setCards] = useState<ApiCard[]>([]);
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
@@ -78,30 +71,26 @@ export function CardList() {
 
   const selection = useSelection(cards);
 
-  const filterParam = useMemo(() => {
+  const filterParam: CardFilterKey | undefined = useMemo(() => {
     if (todayOnly) return 'today';
     if (extraFilter !== 'none') return extraFilter;
     return undefined;
   }, [todayOnly, extraFilter]);
 
+  const listFilter: CardListFilter = useMemo(
+    () => ({
+      sort,
+      filter: filterParam,
+      q: q.trim().length > 0 ? q.trim() : undefined,
+      tagIds,
+      collectionIds,
+    }),
+    [sort, filterParam, q, tagIds, collectionIds],
+  );
+
   const queryKey = useMemo(() => {
-    return JSON.stringify({ filterParam, sort, q, tags, collection });
-  }, [filterParam, sort, q, tags, collection]);
-
-  async function fetchPage(cursor?: string) {
-    const params = new URLSearchParams();
-    params.set('limit', '50');
-    params.set('sort', sort);
-    if (cursor) params.set('cursor', cursor);
-    if (filterParam) params.set('filter', filterParam);
-    if (q.trim().length > 0) params.set('q', q.trim());
-    if (tags.trim().length > 0) params.set('tags', tags.trim());
-    if (collection.trim().length > 0) params.set('collection', collection.trim());
-
-    const res = await fetch(`/api/cards?${params.toString()}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return (await res.json()) as ListCardsResponse;
-  }
+    return JSON.stringify(listFilter);
+  }, [listFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,7 +102,7 @@ export function CardList() {
       setReviewSession(null);
 
       try {
-        const data = await fetchPage();
+        const data = await fetchCards(listFilter);
         if (cancelled) return;
         setCards(data.items ?? []);
         setNextCursor(data.nextCursor);
@@ -148,7 +137,7 @@ export function CardList() {
         setMoreLoading(true);
         setMoreError(null);
 
-        void fetchPage(nextCursor)
+        void fetchCards(listFilter, nextCursor)
           .then((data) => {
             setCards((prev) => [...prev, ...(data.items ?? [])]);
             setNextCursor(data.nextCursor);
@@ -165,14 +154,14 @@ export function CardList() {
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [nextCursor, initialLoading, moreLoading, queryKey]);
+  }, [nextCursor, initialLoading, moreLoading, queryKey, listFilter]);
 
   async function retryInitial() {
     setInitialLoading(true);
     setInitialError(null);
 
     try {
-      const data = await fetchPage();
+      const data = await fetchCards(listFilter);
       setCards(data.items ?? []);
       setNextCursor(data.nextCursor);
     } catch (e: unknown) {
@@ -186,21 +175,7 @@ export function CardList() {
     setMoreError(null);
 
     try {
-      const apiFilter = {
-        sort,
-        filter: filterParam,
-        q: q.trim().length > 0 ? q.trim() : undefined,
-        tags: tags.trim().length > 0 ? tags.trim() : undefined,
-        collection: collection.trim().length > 0 ? collection.trim() : undefined,
-      };
-
-      const res = await fetch('/api/review/start', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ filter: apiFilter }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as ReviewStartResponse;
+      const data = (await startReviewRequest(listFilter)) as ReviewStartResponse;
       setReviewSession(data);
     } catch (e: unknown) {
       setMoreError(getErrorMessage(e, 'failed to start review'));
@@ -245,20 +220,60 @@ export function CardList() {
     setExtraFilter('none');
     setSort('next_review_at');
     setQ('');
-    setTags('');
-    setCollection('');
+    setTagIds([]);
+    setCollectionIds([]);
+    setTagLabels([]);
+    setCollectionLabels([]);
+  }
+
+  useEffect(() => {
+    if (tagIds.length === 0) {
+      setTagLabels([]);
+      return;
+    }
+
+    void fetchTagOptions().then((options) => {
+      setTagLabels(options.filter((option) => tagIds.includes(option.id)).map((option) => option.label));
+    });
+  }, [tagIds]);
+
+  useEffect(() => {
+    if (collectionIds.length === 0) {
+      setCollectionLabels([]);
+      return;
+    }
+
+    void fetchCollectionOptions().then((options) => {
+      setCollectionLabels(options.filter((option) => collectionIds.includes(option.id)).map((option) => option.label));
+    });
+  }, [collectionIds]);
+
+  function toggleTag(id: string) {
+    setTagIds((prev) => (prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]));
+  }
+
+  function toggleCollection(id: string) {
+    setCollectionIds((prev) => (prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]));
   }
 
   return (
-    <main>
-      <h1>カード一覧</h1>
+    <main className="min-h-screen bg-surface-base px-4 py-8 md:px-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <header className="space-y-2">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-primary">Card List</p>
+          <h1 className="text-4xl font-semibold text-text-primary">カード一覧</h1>
+          <p className="max-w-3xl text-sm leading-6 text-text-secondary">
+            今日の復習、検索、タグ、コレクション、バルク操作を 1 画面で完結させます。
+          </p>
+        </header>
 
-      <section aria-label="filters">
+        <section aria-label="filters" className="grid gap-4 rounded-[28px] border border-border-subtle bg-surface-panel p-5 md:grid-cols-2 xl:grid-cols-[auto,auto,1fr,auto]">
         <TodayFilter value={todayOnly} onChange={setTodayOnly} />
 
-        <label>
+        <label className="flex flex-col gap-2 text-sm font-medium text-text-secondary">
           追加フィルタ
           <select
+            className="rounded-md border border-border-subtle bg-surface-panel px-3 py-2 text-sm text-text-primary outline-none"
             value={extraFilter}
             onChange={(e) => setExtraFilter(resolveExtraFilter(e.currentTarget.value))}
             disabled={todayOnly}
@@ -270,12 +285,16 @@ export function CardList() {
         </label>
 
         <SearchBar value={q} onDebouncedChange={setQ} />
-        <TagFilter value={tags} onChange={setTags} />
-        <CollectionSelector value={collection} onChange={setCollection} />
+        <TagFilter labels={tagLabels} onOpen={() => setTagModalOpen(true)} />
+        <CollectionSelector labels={collectionLabels} onOpen={() => setCollectionModalOpen(true)} />
 
-        <label>
+        <label className="flex flex-col gap-2 text-sm font-medium text-text-secondary">
           ソート
-          <select value={sort} onChange={(e) => setSort(resolveSort(e.currentTarget.value))}>
+          <select
+            className="rounded-md border border-border-subtle bg-surface-panel px-3 py-2 text-sm text-text-primary outline-none"
+            value={sort}
+            onChange={(e) => setSort(resolveSort(e.currentTarget.value))}
+          >
             <option value="next_review_at">次回復習日時</option>
             <option value="proficiency">習熟度</option>
             <option value="created_at">作成日</option>
@@ -283,29 +302,24 @@ export function CardList() {
         </label>
       </section>
 
-      <section aria-label="actions">
-        <StartReviewButton disabled={cards.length === 0 || initialLoading} onClick={startReview} />
-      </section>
-
-      <SelectionBar
-        selectedCount={selection.selectedIds.size}
-        onArchive={bulkArchive}
-        onDelete={() => setDeleteModalOpen(true)}
-      />
-
-      {initialError ? (
-        <div role="alert">
-          <p>Error: {initialError}</p>
-          <button type="button" onClick={() => void retryInitial()}>
-            再試行
+        <section aria-label="actions" className="flex flex-wrap items-center justify-between gap-4">
+          <StartReviewButton disabled={cards.length === 0 || initialLoading} onClick={startReview} />
+          <button type="button" onClick={resetFilters} className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-primary">
+            条件をリセット
           </button>
-        </div>
-      ) : null}
+        </section>
 
-      {initialLoading ? <p>Loading...</p> : null}
+        <SelectionBar
+          selectedCount={selection.selectedIds.size}
+          onArchive={bulkArchive}
+          onDelete={() => setDeleteModalOpen(true)}
+        />
+
+        {initialError ? <RetryBanner message={`Error: ${initialError}`} onRetry={retryInitial} /> : null}
+        {moreError ? <RetryBanner message={`Error: ${moreError}`} /> : null}
 
       {reviewSession ? (
-        <section aria-label="review-session">
+        <section aria-label="review-session" className="rounded-3xl border border-border-subtle bg-surface-panel p-5">
           <p>
             sessionId: <span data-testid="session-id">{reviewSession.sessionId}</span>
           </p>
@@ -315,39 +329,53 @@ export function CardList() {
         </section>
       ) : null}
 
-      <section aria-label="card-list">
-        {cards.map((card) => (
-          <CardItem
-            key={card.id}
-            card={card}
-            selected={selection.isSelected(card.id)}
-            onToggleSelected={() => selection.toggle(card.id)}
-          />
-        ))}
+        <section aria-label="card-list" className="space-y-4">
+          {initialLoading ? (
+            <AsyncState kind="loading" title="カードを読み込み中" description="条件に合うカードを取得しています。" />
+          ) : null}
 
-        {!initialLoading && !initialError && cards.length === 0 ? (
-          <div>
-            <p>条件に一致するカードがありません。</p>
-            <button type="button" onClick={resetFilters}>
-              条件をリセット
-            </button>
-          </div>
-        ) : null}
+          {!initialLoading && !initialError && cards.length === 0 ? (
+            <AsyncState
+              kind="empty"
+              title="条件に一致するカードがありません。"
+              description="フィルタを広げるか、条件をリセットしてください。"
+              action={{ label: '条件をリセット', onClick: resetFilters }}
+            />
+          ) : null}
 
-        {moreError ? <p role="alert">Error: {moreError}</p> : null}
-        {moreLoading ? <p>Loading more...</p> : null}
+          {!initialLoading && !initialError
+            ? cards.map((card) => (
+                <CardItem
+                  key={card.id}
+                  card={card}
+                  selected={selection.isSelected(card.id)}
+                  onToggleSelected={() => selection.toggle(card.id)}
+                />
+              ))
+            : null}
 
-        <div ref={sentinelRef} aria-hidden="true" />
-      </section>
+          {moreLoading ? <p className="text-sm text-text-secondary">Loading more...</p> : null}
 
-      <DeleteConfirmModal
-        open={deleteModalOpen}
-        items={selection.selectedItems.map((c) => ({ id: c.id, title: c.title }))}
-        onConfirm={confirmBulkDelete}
-        onCancel={() => setDeleteModalOpen(false)}
-      />
+          <div ref={sentinelRef} aria-hidden="true" />
+        </section>
 
-      {bulkWorking ? <p>Working...</p> : null}
+        <TagFilterModal open={tagModalOpen} selectedIds={tagIds} onToggle={toggleTag} onClose={() => setTagModalOpen(false)} />
+        <CollectionSelectorModal
+          open={collectionModalOpen}
+          selectedIds={collectionIds}
+          onToggle={toggleCollection}
+          onClose={() => setCollectionModalOpen(false)}
+        />
+
+        <DeleteConfirmModal
+          open={deleteModalOpen}
+          items={selection.selectedItems.map((c) => ({ id: c.id, title: c.title }))}
+          onConfirm={confirmBulkDelete}
+          onCancel={() => setDeleteModalOpen(false)}
+        />
+
+        {bulkWorking ? <p className="text-sm text-text-secondary">Working...</p> : null}
+      </div>
     </main>
   );
 }

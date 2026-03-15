@@ -1,0 +1,311 @@
+{
+  "meta": {
+    "source": "https://www.cyberagent.co.jp/news/",
+    "capturedAt": "2026-03-08T23:01:25.447Z",
+    "generatedBy": "playwright-mcp-style-extractor",
+    "note": "Values are auto-extracted from computed styles and normalized for reuse."
+  },
+  "theme": {
+    "color": {
+      "text": {
+        "primary": "rgb(0, 0, 0)",
+        "secondary": "rgb(85, 85, 85)",
+        "inverse": "rgb(255, 255, 255)"
+      },
+      "surface": {
+        "base": "rgb(255, 255, 255)",
+        "muted": "rgb(240, 240, 238)",
+        "accent": "rgb(45, 140, 60)",
+        "dark": "rgb(0, 0, 0)"
+      },
+      "border": {
+        "default": "rgb(0, 0, 0)",
+        "accent": "rgb(130, 190, 40)"
+      },
+      "palette": {
+        "text": [
+          {
+            "value": "rgb(0, 0, 0)",
+            "count": 1122
+          },
+          {
+            "value": "rgb(85, 85, 85)",
+            "count": 16
+          },
+          {
+            "value": "rgb(130, 190, 40)",
+            "count": 8
+          },
+          {
+            "value": "rgb(238, 238, 238)",
+            "count": 5
+          },
+          {
+            "value": "rgb(51, 51, 51)",
+            "count": 2
+          },
+          {
+            "value": "rgb(56, 96, 190)",
+            "count": 1
+          }
+        ],
+        "background": [
+          {
+            "value": "rgb(255, 255, 255)",
+            "count": 29
+          },
+          {
+            "value": "rgb(45, 140, 60)",
+            "count": 16
+          },
+          {
+            "value": "rgb(0, 0, 0)",
+            "count": 12
+          },
+          {
+            "value": "rgb(130, 190, 40)",
+            "count": 8
+          },
+          {
+            "value": "rgb(39, 69, 92)",
+            "count": 8
+          },
+          {
+            "value": "rgb(240, 240, 238)",
+            "count": 7
+          }
+        ],
+        "border": [
+          {
+            "value": "rgb(0, 0, 0)",
+            "count": 981
+          },
+          {
+            "value": "rgb(255, 255, 255)",
+            "count": 458
+          },
+          {
+            "value": "rgb(227, 227, 227)",
+            "count": 74
+          },
+          {
+            "value": "rgb(163, 163, 163)",
+            "count": 51
+          },
+          {
+            "value": "rgb(85, 85, 85)",
+            "count": 15
+          },
+          {
+            "value": "rgb(130, 190, 40)",
+            "count": 8
+          }
+        ]
+      }
+    },
+    "typography": {
+      "family": {
+        "body": "YuGothic, ヒラギノ角ゴ ProN W3, Lucida Grande",
+        "heading": "CA Sans, YuGothic, ヒラギノ角ゴ ProN W3"
+      },
+      "size": {
+        "s1": "16px",
+        "s2": "15px",
+        "s3": "14px",
+        "s4": "12px",
+        "s5": "22px",
+        "s6": "10px",
+        "s7": "24px",
+        "s8": "20px"
+      },
+      "lineHeight": {
+        "l1": "28.8px",
+        "l2": "25.6px",
+        "l3": "24px",
+        "l4": "22.4px",
+        "l5": "21.6px",
+        "l6": "25.2px",
+        "l7": "27px",
+        "l8": "32px"
+      },
+      "weight": {
+        "regular": "400",
+        "medium": "500",
+        "semibold": "600",
+        "bold": "700"
+      }
+    },
+    "spacing": {
+      "space1": "6px",
+      "space2": "10px",
+      "space3": "2px",
+      "space4": "18px",
+      "space5": "13px",
+      "space6": "20px",
+      "space7": "24px",
+      "space8": "4px"
+    },
+    "radius": {
+      "scale": {
+        "r1": "20px",
+        "r2": "2px",
+        "r3": "50px",
+        "r4": "1px",
+        "r5": "3px",
+        "r6": "30px",
+        "r7": "12px",
+        "r8": "45px"
+      },
+      "pill": "50px",
+      "round": "50%"
+    },
+    "shadow": {
+      "soft": "rgb(153, 153, 153) 0px 2px 10px -3px",
+      "medium": "rgb(199, 197, 199) 0px 0px 12px 2px"
+    },
+    "breakpoints": {
+      "mediaQueries": [
+        "only screen and (min-width: 426px) and (max-width: 896px) and (orientation: landscape)",
+        "(min-width: 400px)",
+        "(min-width: 550px)",
+        "only screen and (max-width: 425px)",
+        "only screen and (min-width: 426px) and (max-width: 896px)",
+        "only screen and (min-width: 550px)",
+        "only screen and (min-width: 425px) and (max-width: 550px)",
+        "only screen and (min-width: 769px)",
+        "only screen and (min-width: 897px) and (max-width: 1023px)",
+        "only screen and (min-width: 1024px)",
+        "only screen and (min-width: 890px)",
+        "only screen and (min-width: 1280px)",
+        "only screen and (max-width: 600px)",
+        "only screen and (max-width: 476px)",
+        "only screen and (max-width: 896px) and (max-height: 425px) and (orientation: landscape)",
+        "only screen and (max-width: 530px)"
+      ]
+    }
+  },
+  "componentPresets": {
+    "body": {
+      "selector": "body",
+      "tag": "body",
+      "color": "rgb(0, 0, 0)",
+      "background": "rgb(240, 240, 238)",
+      "fontFamily": "YuGothic, ヒラギノ角ゴ ProN W3, Lucida Grande",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "28.8px",
+      "borderRadius": "0px",
+      "borderColor": "rgb(0, 0, 0)",
+      "boxShadow": "none",
+      "padding": "0px",
+      "gap": "normal"
+    },
+    "header": {
+      "selector": "header",
+      "tag": "header",
+      "color": "rgb(0, 0, 0)",
+      "background": "rgba(0, 0, 0, 0)",
+      "fontFamily": "YuGothic, ヒラギノ角ゴ ProN W3, Lucida Grande",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "28.8px",
+      "borderRadius": "0px",
+      "borderColor": "rgb(0, 0, 0)",
+      "boxShadow": "none",
+      "padding": "0px",
+      "gap": "normal"
+    },
+    "navigationLink": {
+      "selector": "header a, nav a, .gnav a",
+      "tag": "a",
+      "color": "rgb(130, 190, 40)",
+      "background": "rgba(0, 0, 0, 0)",
+      "fontFamily": "YuGothic, ヒラギノ角ゴ ProN W3, Lucida Grande",
+      "fontSize": "0px",
+      "fontWeight": "400",
+      "lineHeight": "0px",
+      "borderRadius": "0px",
+      "borderColor": "rgb(130, 190, 40)",
+      "boxShadow": "none",
+      "padding": "0px",
+      "gap": "normal"
+    },
+    "h1": {
+      "selector": "h1",
+      "tag": "h1",
+      "color": "rgb(0, 0, 0)",
+      "background": "rgba(0, 0, 0, 0)",
+      "fontFamily": "YuGothic, ヒラギノ角ゴ ProN W3, Lucida Grande",
+      "fontSize": "16px",
+      "fontWeight": "700",
+      "lineHeight": "28.8px",
+      "borderRadius": "0px",
+      "borderColor": "rgb(0, 0, 0)",
+      "boxShadow": "none",
+      "padding": "0px",
+      "gap": "normal"
+    },
+    "h2": null,
+    "paragraph": {
+      "selector": "p",
+      "tag": "p",
+      "color": "rgb(0, 0, 0)",
+      "background": "rgba(0, 0, 0, 0)",
+      "fontFamily": "CA Sans, YuGothic, ヒラギノ角ゴ ProN W3",
+      "fontSize": "27px",
+      "fontWeight": "400",
+      "lineHeight": "27px",
+      "borderRadius": "0px",
+      "borderColor": "rgb(0, 0, 0)",
+      "boxShadow": "none",
+      "padding": "0px",
+      "gap": "normal"
+    },
+    "card": {
+      "selector": "article, .card, .news-item, li",
+      "tag": "li",
+      "color": "rgb(0, 0, 0)",
+      "background": "rgba(0, 0, 0, 0)",
+      "fontFamily": "YuGothic, ヒラギノ角ゴ ProN W3, Lucida Grande",
+      "fontSize": "15px",
+      "fontWeight": "700",
+      "lineHeight": "24px",
+      "borderRadius": "0px",
+      "borderColor": "rgb(255, 255, 255) rgb(0, 0, 0) rgb(0, 0, 0)",
+      "boxShadow": "none",
+      "padding": "0px",
+      "gap": "normal"
+    },
+    "button": {
+      "selector": "button, .btn, [role=\"button\"]",
+      "tag": "button",
+      "color": "rgb(0, 0, 0)",
+      "background": "rgb(130, 190, 40)",
+      "fontFamily": "YuGothic, ヒラギノ角ゴ ProN W3, Lucida Grande",
+      "fontSize": "24px",
+      "fontWeight": "400",
+      "lineHeight": "43.2px",
+      "borderRadius": "50%",
+      "borderColor": "rgb(0, 0, 0)",
+      "boxShadow": "none",
+      "padding": "0px",
+      "gap": "normal"
+    },
+    "badge": null,
+    "footer": {
+      "selector": "footer",
+      "tag": "footer",
+      "color": "rgb(255, 255, 255)",
+      "background": "rgb(0, 0, 0)",
+      "fontFamily": "YuGothic, ヒラギノ角ゴ ProN W3, Lucida Grande",
+      "fontSize": "16px",
+      "fontWeight": "400",
+      "lineHeight": "28.8px",
+      "borderRadius": "0px",
+      "borderColor": "rgb(255, 255, 255)",
+      "boxShadow": "none",
+      "padding": "0px",
+      "gap": "normal"
+    }
+  }
+}
