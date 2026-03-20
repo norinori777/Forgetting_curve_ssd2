@@ -315,8 +315,8 @@ export function CardList() {
   }
 
   return (
-    <main className="min-h-screen bg-surface-base px-4 py-8 md:px-8">
-      <div className="mx-auto max-w-6xl space-y-6">
+    <section className="space-y-6 py-8" aria-label="cards-page">
+      <div className="space-y-6">
         <header className="space-y-2">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-primary">Card List</p>
           <h1 className="text-4xl font-semibold text-text-primary">カード一覧</h1>
@@ -465,6 +465,6 @@ export function CardList() {
 
         {bulkWorking ? <p className="text-sm text-text-secondary">Working...</p> : null}
       </div>
-    </main>
+    </section>
   );
 }

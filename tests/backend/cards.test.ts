@@ -218,8 +218,8 @@ function createFakePrisma(getStore: () => Store) {
           const needle = String(args.where.name.contains).toLowerCase();
           return s.tags.filter((t) => t.name.toLowerCase().includes(needle)).slice(0, args.take ?? s.tags.length);
         }
-        const names = args.where?.OR?.[0]?.name?.in ?? [];
-        const ids = args.where?.OR?.[1]?.id?.in ?? [];
+        const names = (args.where?.OR ?? []).flatMap((entry: any) => entry.name?.in ?? []);
+        const ids = (args.where?.OR ?? []).flatMap((entry: any) => entry.id?.in ?? []);
         return s.tags.filter((t) => names.includes(t.name) || ids.includes(t.id));
       },
     },
@@ -494,5 +494,153 @@ describe('backend cards API', () => {
     });
 
     expect(result.items.map((item) => item.id)).toEqual(['c1']);
+  });
+
+  it('parses list query params for filter, collectionIds, tagIds, and sort', async () => {
+    process.env.NODE_ENV = 'test';
+
+    store.cards = [
+      {
+        id: 'c1',
+        title: 'Tagged in collection',
+        content: 'first',
+        collectionId: 'col1',
+        proficiency: 0,
+        nextReviewAt: new Date('2026-03-07T00:00:00.000Z'),
+        lastCorrectRate: 0.1,
+        isArchived: false,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      },
+      {
+        id: 'c2',
+        title: 'Different collection',
+        content: 'second',
+        collectionId: 'col2',
+        proficiency: 0,
+        nextReviewAt: new Date('2026-03-07T00:00:00.000Z'),
+        lastCorrectRate: 0.2,
+        isArchived: false,
+        createdAt: new Date('2026-03-02T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-02T00:00:00.000Z'),
+      },
+    ];
+    store.tags = [{ id: 'tag1', name: 'tag1' }];
+    store.cardTags = [{ cardId: 'c1', tagId: 'tag1' }];
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .get('/api/cards?filter=unlearned&tagIds=tag1&collectionIds=col1&sort=created_at')
+      .expect(200);
+
+    expect(res.body.items).toHaveLength(1);
+    expect(res.body.items[0].id).toBe('c1');
+  });
+
+  it('bulk archive endpoint marks selected cards as archived', async () => {
+    process.env.NODE_ENV = 'test';
+
+    store.cards = [
+      {
+        id: 'c1',
+        title: 'A',
+        content: 'first',
+        collectionId: null,
+        proficiency: 1,
+        nextReviewAt: new Date('2026-03-07T00:00:00.000Z'),
+        lastCorrectRate: 0.1,
+        isArchived: false,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      },
+      {
+        id: 'c2',
+        title: 'B',
+        content: 'second',
+        collectionId: null,
+        proficiency: 2,
+        nextReviewAt: new Date('2026-03-07T00:00:01.000Z'),
+        lastCorrectRate: 0.2,
+        isArchived: false,
+        createdAt: new Date('2026-03-02T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-02T00:00:00.000Z'),
+      },
+    ];
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/cards/bulk')
+      .send({ action: 'archive', cardIds: ['c1'] })
+      .expect(200);
+
+    expect(res.body.ok).toBe(true);
+    expect(res.body.archived).toBe(1);
+    expect(store.cards.find((card) => card.id === 'c1')?.isArchived).toBe(true);
+    expect(store.cards.find((card) => card.id === 'c2')?.isArchived).toBe(false);
+  });
+
+  it('bulk tag endpoints are idempotent for repeated add and remove requests', async () => {
+    process.env.NODE_ENV = 'test';
+
+    store.cards = [
+      {
+        id: 'c1',
+        title: 'A',
+        content: 'first',
+        collectionId: null,
+        proficiency: 1,
+        nextReviewAt: new Date('2026-03-07T00:00:00.000Z'),
+        lastCorrectRate: 0.1,
+        isArchived: false,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      },
+    ];
+    store.tags = [{ id: 'tag1', name: 'tag1' }];
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    await request(app)
+      .post('/api/cards/bulk')
+      .send({ action: 'addTags', cardIds: ['c1'], tagIds: ['tag1'] })
+      .expect(200);
+
+    await request(app)
+      .post('/api/cards/bulk')
+      .send({ action: 'addTags', cardIds: ['c1'], tagIds: ['tag1'] })
+      .expect(200);
+
+    expect(store.cardTags).toEqual([{ cardId: 'c1', tagId: 'tag1' }]);
+
+    const removeFirst = await request(app)
+      .post('/api/cards/bulk')
+      .send({ action: 'removeTags', cardIds: ['c1'], tagIds: ['tag1'] })
+      .expect(200);
+
+    const removeSecond = await request(app)
+      .post('/api/cards/bulk')
+      .send({ action: 'removeTags', cardIds: ['c1'], tagIds: ['tag1'] })
+      .expect(200);
+
+    expect(removeFirst.body.ok).toBe(true);
+    expect(removeFirst.body.removed).toBe(1);
+    expect(removeSecond.body.ok).toBe(true);
+    expect(removeSecond.body.removed).toBe(0);
+    expect(store.cardTags).toEqual([]);
+  });
+
+  it('rejects tag bulk actions when tagIds are omitted', async () => {
+    process.env.NODE_ENV = 'test';
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/cards/bulk')
+      .send({ action: 'addTags', cardIds: ['c1'] })
+      .expect(400);
+
+    expect(res.body.error).toBe('invalid_body');
   });
 });

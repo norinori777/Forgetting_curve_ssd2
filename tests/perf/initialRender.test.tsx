@@ -1,8 +1,15 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-import { CardList } from '../../frontend/src/pages/CardList';
+import { App } from '../../frontend/src/App';
+
+class IntersectionObserverMock {
+  observe() {}
+  disconnect() {}
+  unobserve() {}
+}
 
 describe('SC-002: initial render performance (synthetic)', () => {
   it('renders initial interactive state within 2s (synthetic)', async () => {
@@ -14,9 +21,14 @@ describe('SC-002: initial render performance (synthetic)', () => {
 
     // @ts-expect-error testing stub
     vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('IntersectionObserver', IntersectionObserverMock);
 
     const start = performance.now();
-    render(<CardList />);
+    render(
+      <MemoryRouter initialEntries={['/cards']}>
+        <App />
+      </MemoryRouter>,
+    );
 
     await screen.findByRole('heading', { name: 'カード一覧' });
     const end = performance.now();

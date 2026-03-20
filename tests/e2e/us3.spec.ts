@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 function seedCards() {
   return [
@@ -31,6 +31,13 @@ function seedCards() {
   ];
 }
 
+async function openCardList(page: Page) {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'ホーム' })).toBeVisible();
+  await page.getByRole('link', { name: 'カード一覧' }).click();
+  await expect(page.getByRole('heading', { name: 'カード一覧' })).toBeVisible();
+}
+
 test('US3: 複数選択 → 一括アーカイブ', async ({ page }) => {
   let cards = seedCards();
 
@@ -52,7 +59,7 @@ test('US3: 複数選択 → 一括アーカイブ', async ({ page }) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
 
-  await page.goto('/');
+  await openCardList(page);
 
   await expect(page.getByRole('heading', { name: 'Card 1' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Card 2' })).toBeVisible();
@@ -88,7 +95,7 @@ test('US3: 削除確認モーダル（Escでキャンセル／確定で削除）
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
 
-  await page.goto('/');
+  await openCardList(page);
 
   await page.getByLabel('選択: Card 1').check();
   await page.getByRole('button', { name: '削除', exact: true }).click();

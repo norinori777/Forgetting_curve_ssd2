@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
-  title: Card List API (specs/001-card-list)
-  version: '0.1.0'
+  title: Card List API Contract (specs/001-card-list)
+  version: '0.2.0'
 paths:
   /api/tags:
     get:
@@ -17,18 +17,15 @@ paths:
           schema:
             type: integer
             default: 20
+            minimum: 1
+            maximum: 100
       responses:
         '200':
-          description: OK
+          description: Tag options fetched successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/FilterOption'
+                $ref: '#/components/schemas/FilterOptionListResponse'
   /api/collections:
     get:
       summary: Search selectable collection options for the shared filter modal
@@ -43,37 +40,36 @@ paths:
           schema:
             type: integer
             default: 20
+            minimum: 1
+            maximum: 100
       responses:
         '200':
-          description: OK
+          description: Collection options fetched successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/FilterOption'
+                $ref: '#/components/schemas/FilterOptionListResponse'
   /api/cards:
     get:
-      summary: List cards with cursor pagination and filters
+      summary: List non-archived cards with cursor pagination and filter state
       parameters:
         - in: query
           name: cursor
           schema:
             type: string
-          description: Cursor token (opaque, from previous response)
+          description: Opaque cursor token from a previous response
         - in: query
           name: limit
           schema:
             type: integer
             default: 50
+            minimum: 1
+            maximum: 200
         - in: query
           name: q
           schema:
             type: string
-          description: Full-text search query (title/content)
+          description: Full-text search query for title/content/tag related matches
         - in: query
           name: tagIds
           schema:
@@ -89,72 +85,66 @@ paths:
           schema:
             type: string
             enum: [today, overdue, unlearned]
-          description: single-select status filter chosen from the dropdown
+          description: Single-select status filter chosen from the dropdown
         - in: query
           name: sort
           schema:
             type: string
             enum: [next_review_at, proficiency, created_at]
-          description: sort key
+            default: next_review_at
+          description: Sort key for stable ordered pagination
       responses:
         '200':
-          description: OK
+          description: Card page fetched successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Card'
-                  nextCursor:
-                    type: string
-                    description: opaque cursor to fetch next page
+                $ref: '#/components/schemas/ListCardsResponse'
+        '400':
+          description: Invalid query or cursor/sort mismatch
   /api/cards/bulk:
     post:
-      summary: Bulk operations on cards (archive, delete, addTags, removeTags)
+      summary: Execute a bulk action on selected cards
+      description: |
+        `archive` removes affected cards from the default list after a successful refresh.
+        `addTags` and `removeTags` are idempotent: adding an already attached tag or removing a missing tag is treated as a successful no-op.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                action:
-                  type: string
-                  enum: [archive, delete, addTags, removeTags]
-                cardIds:
-                  type: array
-                  items:
-                    type: string
-                tagIds:
-                  type: array
-                  items:
-                    type: string
+              $ref: '#/components/schemas/BulkRequest'
       responses:
         '200':
-          description: OK
+          description: Bulk action completed successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ArchiveBulkResponse'
+                  - $ref: '#/components/schemas/DeleteBulkResponse'
+                  - $ref: '#/components/schemas/TagBulkResponse'
+        '400':
+          description: Invalid request payload
   /api/review/start:
     post:
-      summary: Start a review session based on current filter or explicit card ids
+      summary: Start a review session from the current list filter or an explicit card list
+      description: In the card list UI, the caller sends `filter` and ignores selection state.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                filter:
-                  $ref: '#/components/schemas/CardListFilter'
-                cardIds:
-                  type: array
-                  items:
-                    type: string
-                  description: optional explicit list of cards; if omitted, `filter` is applied
+              $ref: '#/components/schemas/ReviewStartRequest'
       responses:
         '200':
-          description: OK
+          description: Review session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewStartResponse'
+        '400':
+          description: Invalid request payload
 components:
   schemas:
     Card:
@@ -213,8 +203,21 @@ components:
           type: string
           nullable: true
           enum: [name, alias, null]
+    FilterOptionListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterOption'
     CardListFilter:
       type: object
+      required:
+        - sort
+        - tagIds
+        - collectionIds
       properties:
         q:
           type: string
@@ -229,6 +232,91 @@ components:
           items:
             type: string
         collectionIds:
+          type: array
+          items:
+            type: string
+    ListCardsResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Card'
+        nextCursor:
+          type: string
+          description: Opaque cursor to fetch the next page
+    BulkRequest:
+      type: object
+      required:
+        - action
+        - cardIds
+      properties:
+        action:
+          type: string
+          enum: [archive, delete, addTags, removeTags]
+        cardIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        tagIds:
+          type: array
+          items:
+            type: string
+    ArchiveBulkResponse:
+      type: object
+      required:
+        - ok
+        - archived
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        archived:
+          type: integer
+    DeleteBulkResponse:
+      type: object
+      required:
+        - ok
+        - deleted
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        deleted:
+          type: integer
+    TagBulkResponse:
+      type: object
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        removed:
+          type: integer
+          description: Present for `removeTags`; omitted for `addTags`
+    ReviewStartRequest:
+      type: object
+      properties:
+        filter:
+          $ref: '#/components/schemas/CardListFilter'
+        cardIds:
+          type: array
+          items:
+            type: string
+          description: Reserved for explicit-card flows; the card list page sends `filter` instead
+    ReviewStartResponse:
+      type: object
+      required:
+        - sessionId
+        - cardIds
+      properties:
+        sessionId:
+          type: string
+        cardIds:
           type: array
           items:
             type: string

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
-  title: Card List API (specs/001-card-list)
-  version: '0.1.0'
+  title: Card List API Contract
+  version: '0.2.0'
 paths:
   /api/tags:
     get:
@@ -57,7 +57,7 @@ paths:
                       $ref: '#/components/schemas/FilterOption'
   /api/cards:
     get:
-      summary: List cards with cursor pagination and filters
+      summary: List non-archived cards with cursor pagination and filter state
       parameters:
         - in: query
           name: cursor
@@ -73,7 +73,7 @@ paths:
           name: q
           schema:
             type: string
-          description: Full-text search query (title/content)
+          description: Full-text search query for title/content/tag related matches
         - in: query
           name: tagIds
           schema:
@@ -89,13 +89,13 @@ paths:
           schema:
             type: string
             enum: [today, overdue, unlearned]
-          description: pre-defined filters (e.g., today, overdue, unlearned)
+          description: Single-select status filter chosen from the dropdown
         - in: query
           name: sort
           schema:
             type: string
             enum: [next_review_at, proficiency, created_at]
-          description: sort key
+          description: Sort key for stable ordered pagination
       responses:
         '200':
           description: OK
@@ -111,9 +111,14 @@ paths:
                   nextCursor:
                     type: string
                     description: opaque cursor to fetch next page
+        '400':
+          description: Invalid query or cursor/sort mismatch
   /api/cards/bulk:
     post:
-      summary: Bulk operations on cards (archive, delete, addTags, removeTags)
+      summary: Execute a bulk action on selected cards
+      description: |
+        `archive` removes affected cards from the default list after a successful refresh.
+        `addTags` and `removeTags` are idempotent: adding an already attached tag or removing a missing tag is treated as a successful no-op.
       requestBody:
         required: true
         content:
@@ -135,9 +140,12 @@ paths:
       responses:
         '200':
           description: OK
+        '400':
+          description: Invalid request payload
   /api/review/start:
     post:
-      summary: Start a review session based on current filter or explicit card ids
+      summary: Start a review session from the current list filter or an explicit card list
+      description: In the card list UI, the caller sends `filter` and ignores selection state.
       requestBody:
         required: true
         content:
@@ -155,6 +163,8 @@ paths:
       responses:
         '200':
           description: OK
+        '400':
+          description: Invalid request payload
 components:
   schemas:
     Card:

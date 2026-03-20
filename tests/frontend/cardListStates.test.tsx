@@ -1,8 +1,10 @@
 import React from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 
+import { App } from '../../frontend/src/App';
 import { CardList } from '../../frontend/src/pages/CardList';
 
 class IntersectionObserverMock {
@@ -17,6 +19,7 @@ describe('CardList states', () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -81,6 +84,85 @@ describe('CardList states', () => {
 
     await waitFor(() => {
       expect(screen.getByText('タグ: tag1')).toBeInTheDocument();
+    });
+  });
+
+  it('renders home first and navigates to /cards within the shared layout', async () => {
+    const user = userEvent.setup();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/api/cards')) {
+          return new Response(JSON.stringify({ items: [], nextCursor: undefined }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      }),
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'ホーム' })).toBeInTheDocument();
+    expect(screen.getByLabelText('パンくず')).toHaveTextContent('ホーム');
+
+    await user.click(screen.getByRole('link', { name: 'カード一覧' }));
+
+    expect(await screen.findByRole('heading', { name: 'カード一覧' })).toBeInTheDocument();
+    expect(screen.getByLabelText('パンくず')).toHaveTextContent('カード一覧');
+  });
+
+  it('supports keyboard focus to search and clears selection when filters change', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/api/cards')) {
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 'c1',
+                  title: 'Card 1',
+                  content: 'one',
+                  tags: [],
+                  collectionId: null,
+                  proficiency: 0,
+                  nextReviewAt: new Date('2026-03-07T00:00:00.000Z').toISOString(),
+                  lastCorrectRate: 0,
+                  isArchived: false,
+                  createdAt: new Date('2026-03-01T00:00:00.000Z').toISOString(),
+                  updatedAt: new Date('2026-03-01T00:00:00.000Z').toISOString(),
+                },
+              ],
+              nextCursor: undefined,
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      }),
+    );
+
+    render(<CardList />);
+
+    await screen.findByRole('heading', { name: 'Card 1' });
+
+    await user.keyboard('{Control>}f{/Control}');
+    expect(screen.getByLabelText('検索')).toHaveFocus();
+
+    await user.click(screen.getByLabelText('選択: Card 1'));
+    expect(screen.getByTestId('selected-count')).toHaveTextContent('1');
+
+    await user.selectOptions(screen.getByLabelText('ステータス'), 'today');
+
+    await waitFor(() => {
+      expect(screen.getByTestId('selected-count')).toHaveTextContent('0');
     });
   });
 });
