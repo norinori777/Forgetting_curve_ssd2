@@ -73,14 +73,14 @@ describe('CardList states', () => {
     render(<CardList />);
 
     const [filterSection] = screen.getAllByRole('region', { name: 'filters' });
-    const [openTagButton] = await within(filterSection).findAllByRole('button', { name: 'タグを選択' });
+    const openTagButton = await within(filterSection).findByRole('button', { name: 'タグ/コレクションを選択' });
     await user.click(openTagButton);
-    const optionList = await screen.findByLabelText('tag-options');
+    const optionList = await screen.findByLabelText('shared-tag-options');
     await user.click(within(optionList).getByText('tag1'));
     await user.click(screen.getByRole('button', { name: '適用' }));
 
     await waitFor(() => {
-      expect(screen.getByText('tag1')).toBeInTheDocument();
+      expect(screen.getByText('タグ: tag1')).toBeInTheDocument();
     });
   });
 });

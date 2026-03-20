@@ -4,6 +4,8 @@ dist/
 build/
 coverage/
 **/storybook-static/
+test-results/
+playwright-report/
 *.log
 
 # Env

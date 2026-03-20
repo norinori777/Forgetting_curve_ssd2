@@ -19,8 +19,8 @@ export type CardListFilter = {
   q?: string;
   filter?: CardFilterKey;
   sort: CardSortKey;
-  tagIds?: string[];
-  collectionIds?: string[];
+  tagIds: string[];
+  collectionIds: string[];
 };
 
 export type ListCardsQuery = CardListFilter & {
@@ -37,4 +37,17 @@ export type FilterOption = {
 export type ReviewStartResponse = {
   sessionId: string;
   cardIds: string[];
+};
+
+export type ListCardsResponse = {
+  items: ApiCard[];
+  nextCursor?: string;
+};
+
+export type BulkAction = 'archive' | 'delete' | 'addTags' | 'removeTags';
+
+export type BulkRequest = {
+  action: BulkAction;
+  cardIds: string[];
+  tagIds?: string[];
 };

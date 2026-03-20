@@ -91,7 +91,7 @@ test('US3: 削除確認モーダル（Escでキャンセル／確定で削除）
   await page.goto('/');
 
   await page.getByLabel('選択: Card 1').check();
-  await page.getByRole('button', { name: '削除' }).click();
+  await page.getByRole('button', { name: '削除', exact: true }).click();
 
   const dialog = page.getByRole('dialog', { name: 'delete-confirm' });
   await expect(dialog).toBeVisible();
@@ -102,8 +102,8 @@ test('US3: 削除確認モーダル（Escでキャンセル／確定で削除）
   await expect(dialog).toBeHidden();
   await expect(page.getByRole('heading', { name: 'Card 1' })).toBeVisible();
 
-  await page.getByRole('button', { name: '削除' }).click();
-  await page.getByRole('button', { name: '削除を確定' }).click();
+  await page.getByRole('button', { name: '削除', exact: true }).click();
+  await page.getByRole('button', { name: '削除する（復元不可）' }).click();
 
   await expect(page.getByRole('heading', { name: 'Card 1' })).toBeHidden();
 });

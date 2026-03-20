@@ -76,12 +76,12 @@ test('US1: 今日の復習 → 復習開始', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'カード一覧' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Normal 1' })).toBeVisible();
 
-  await page.getByLabel('今日の復習').check();
+  await page.getByLabel('ステータス').selectOption('today');
 
   await expect(page.getByRole('heading', { name: 'Today 1' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Today 2' })).toBeVisible();
 
-  await page.getByRole('button', { name: '復習開始' }).click();
+  await page.getByRole('button', { name: '復習開始', exact: true }).click();
 
   await expect(page.getByTestId('session-id')).toHaveText('s1');
   await expect(page.getByTestId('session-count')).toHaveText('2');

@@ -35,7 +35,7 @@ npx tailwindcss init -p
 
 - `frontend/tailwind.config.ts` を作成し、`specs/001-card-list/theme.json` を import して `theme.extend` に反映する
 - `frontend/src/index.css` などのエントリ CSS に Tailwind directive を追加する
-- `ascii_ui.txt` の画面構成に合わせて `CardList`、タグ選択モーダル、コレクション選択モーダルを Tailwind クラスで再構成する
+- `ascii_ui.txt` の画面構成に合わせて `CardList`、ステータスフィルタのプルダウン、タグ/コレクション共用選択モーダルを Tailwind クラスで再構成する
 
 ## 5. 開発サーバ起動
 
@@ -55,5 +55,7 @@ npm run test:e2e
 
 - 一覧画面が `ascii_ui.txt` の構成に整合している
 - 色、余白、角丸、フォント、ブレークポイントが `theme.json` のトークンで表現されている
-- タグ/コレクションの複数選択モーダルが検索付きで動作する
+- ステータスフィルタのプルダウンが単一選択で動作する
+- タグ/コレクションの共用複数選択モーダルが、ラジオ切替と検索付きで動作する
+- ソート条件が一覧表の上部で表示・変更できる
 - 検索、フィルタ、ソート、無限スクロール、バルク操作、削除確認、復習開始の挙動が既存仕様から変化していない

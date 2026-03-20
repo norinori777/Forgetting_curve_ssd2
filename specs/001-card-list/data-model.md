@@ -47,7 +47,7 @@ Validation rules:
 
 ### ListFilter（API 入力モデル）
 - `q` (string | undefined) — キーワード
-- `filter` (`today` | `overdue` | `unlearned` | undefined)
+- `filter` (`today` | `overdue` | `unlearned` | undefined) — ステータスプルダウンによる単一選択
 - `sort` (`next_review_at` | `proficiency` | `created_at`)
 - `tagIds` (UUID[])
 - `collectionIds` (UUID[])
@@ -65,8 +65,7 @@ Validation rules:
 - `matchedBy` (`name` | `alias` | undefined)
 
 用途:
-- タグ選択モーダル
-- コレクション選択モーダル
+- タグ/コレクション共用選択モーダル
 
 ## リレーション
 - Card 1 --- 0..1 Collection
@@ -97,20 +96,19 @@ Validation rules:
 - source: `specs/001-card-list/ascii_ui.txt`
 - regions:
 	- 検索バー
-	- フィルタ群
+	- ステータスフィルタのプルダウン
 	- タグ/コレクション選択ボタン
-	- ソート
+	- 一覧表上部に埋め込まれたソート
 	- 主要アクション
 	- 選択バー
 	- カード一覧
 	- ローディング/空状態/エラー状態
 	- 削除確認モーダル
-	- タグ選択モーダル
-	- コレクション選択モーダル
+	- タグ/コレクション共用選択モーダル
 
 ## 実装者向けの注意点
 - フィルタ／検索／ソート条件が変わった場合、UI はカーソルをリセットして先頭から再取得すること
 - 安定したカーソル実装のため、`{ nextReviewAt, id }` を JSON にして base64 化する方式を推奨する
-- モーダル表示はラベル文字列、API 通信は `id` 配列を使い分けること
+- 共用モーダルではラジオ選択中の対象に応じて候補 API を切り替え、表示はラベル文字列、API 通信は `id` 配列を使い分けること
 - Tailwind クラスは `theme.json` にあるトークンを優先し、局所的な例外以外で直書き CSS を追加しないこと
 
