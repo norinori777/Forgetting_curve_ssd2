@@ -21,7 +21,7 @@ export const listCardsQuerySchema = z.object({
   q: z.string().trim().min(1).optional(),
   tagIds: z.preprocess(csvToArray, z.array(z.string().min(1)).optional()),
   collectionIds: z.preprocess(csvToArray, z.array(z.string().min(1)).optional()),
-  filter: z.string().trim().min(1).optional(),
+  filter: z.enum(['today', 'overdue', 'unlearned']).optional(),
   sort: cardSortKeySchema,
 });
 

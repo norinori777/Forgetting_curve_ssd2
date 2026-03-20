@@ -14,6 +14,10 @@ type Story = StoryObj<typeof SelectionBar>;
 export const Empty: Story = {
   args: {
     selectedCount: 0,
+    allSelected: false,
+    onToggleAll: () => {},
+    onAddTags: () => {},
+    onRemoveTags: () => {},
     onArchive: () => {},
     onDelete: () => {},
   },
@@ -22,6 +26,10 @@ export const Empty: Story = {
 export const Selected: Story = {
   args: {
     selectedCount: 3,
+    allSelected: false,
+    onToggleAll: () => {},
+    onAddTags: () => {},
+    onRemoveTags: () => {},
     onArchive: () => {},
     onDelete: () => {},
   },

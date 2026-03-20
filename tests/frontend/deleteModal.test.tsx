@@ -27,7 +27,7 @@ describe('DeleteConfirmModal', () => {
     expect(screen.getByText('Card 1')).toBeInTheDocument();
     expect(screen.getByText('Card 2')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '削除を確定' }));
+    await user.click(screen.getByRole('button', { name: '削除する（復元不可）' }));
 
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(onCancel).not.toHaveBeenCalled();

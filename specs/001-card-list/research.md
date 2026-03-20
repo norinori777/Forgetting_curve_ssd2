@@ -7,17 +7,17 @@ Decision: Language / Runtime
 
 Decision: Frontend framework
 - Decision: React 18 + Vite 5 + Storybook 8 を継続利用する。
-- Rationale: 既存 `frontend` は React 18 / Vite / Storybook で構成されており、カード一覧 UI とモーダル分割に適している。
+- Rationale: 既存 `frontend` は React 18 / Vite / Storybook で構成されており、カード一覧 UI とモーダルベースの操作分離に適している。
 - Alternatives considered: Vue / Svelte への移行。今回の変更は UI 改修であり、フレームワーク変更はスコープ外。
 
 Decision: Styling architecture
-- Decision: UI 実装は Tailwind CSS を導入し、`specs/001-card-list/theme.json` を Tailwind theme 拡張のソースとして利用する。
+- Decision: UI 実装は Tailwind CSS を利用し、`specs/001-card-list/theme.json` を Tailwind theme 拡張のソースとして利用する。
 - Rationale: 仕様で `theme.json` と `ascii_ui.txt` を画面構成・デザイントークンの基準にすることが明確化された。Tailwind はトークン駆動の再利用と画面全体の一貫性に向いている。
 - Alternatives considered: CSS Modules 継続、インライン style、個別 CSS の直書き。トークン統一と再利用の要件に反するため不採用。
 
 Decision: Theme token strategy
 - Decision: `theme.json` は Tailwind の `extend.colors`, `fontFamily`, `fontSize`, `spacing`, `borderRadius`, `screens` に読み込む。
-- Rationale: すでに `theme.json` は Tailwind 形式に近い JSON になっているため、変換層を薄く保てる。
+- Rationale: `theme.json` は Tailwind 形式に近い JSON であり、変換層を薄く保てる。
 - Alternatives considered: CSS Variables を唯一の参照元にする。将来的には併用可能だが、現時点では Tailwind 連携を優先する。
 
 Decision: Backend / API
@@ -31,14 +31,29 @@ Decision: Storage / DB
 - Alternatives considered: NoSQL。タグ・コレクション・並び替え・カーソルの整合を考えると関係 DB の方が適切。
 
 Decision: Multi-select filter serialization
-- Decision: タグとコレクションは UI では複数選択とし、API では `tagIds` / `collectionIds` をカンマ区切りクエリ、または JSON body の配列として扱う。
+- Decision: タグとコレクションは UI では複数選択とし、API では `tagIds` / `collectionIds` をクエリまたは JSON body の配列として扱う。
 - Rationale: ボタン横表示はラベル、通信は ID に分離することで、表示変更や名称重複に強くなる。
 - Alternatives considered: 名前文字列のまま送る。表示名変更や重複名で不安定になるため不採用。
 
-Decision: Option source for modal search
-- Decision: タグ選択モーダルとコレクション選択モーダル向けに `GET /api/tags` と `GET /api/collections` を追加する。
-- Rationale: モーダル内検索は一覧 API に混ぜず、独立した候補 API とした方が責務が明確でキャッシュしやすい。
+Decision: Shared option modal
+- Decision: タグとコレクションの選択は、上部ラジオボタンで対象を切り替える単一の共用モーダルで提供する。
+- Rationale: モーダル構造、検索欄、チェックボックス一覧、フォーカス管理を共通化でき、重複実装を減らせる。ラジオボタンは排他的な対象切り替えを明確に表現でき、アクセシビリティと低工数の両立に向く。
+- Alternatives considered: タグ用とコレクション用の別モーダル。保守コストと状態管理の重複が増えるため不採用。
+
+Decision: Option source for shared modal search
+- Decision: 共用モーダルの候補取得用に `GET /api/tags` と `GET /api/collections` を追加し、ラジオ選択中の対象に応じて切り替えて利用する。
+- Rationale: 候補検索は一覧 API に混ぜず、独立した候補 API とした方が責務が明確でキャッシュしやすい。単一モーダルでもデータソースを分離することで既存の Tag / Collection モデルをそのまま利用できる。
 - Alternatives considered: 初回一覧レスポンスに全候補を埋め込む。大量データ時の初回応答が重くなるため不採用。
+
+Decision: Status filter control
+- Decision: ステータスフィルタは「今日の復習」「期限切れ」「未学習」を選べる単一選択のプルダウンで提供する。
+- Rationale: 相互排他的な条件として扱う方が UI と実装の両方で明確であり、個別トグルよりも状態競合を減らせる。ネイティブの select を使えばアクセシビリティと実装コストのバランスが良い。
+- Alternatives considered: 複数のトグルボタンやチェックボックス。複数同時選択が可能に見えやすく、要件とのズレが生じるため不採用。
+
+Decision: Sort placement
+- Decision: ソート条件は独立したツールバー行ではなく、一覧表の上部タイトル領域に埋め込んで表示する。
+- Rationale: データに対する操作であることが分かりやすく、縦方向のスペースを節約できる。リスト文脈内で現在の並び順を把握しやすく、ASCII UI と実装の対応も取りやすい。
+- Alternatives considered: 一覧外の独立した操作行。視線移動が増え、画面上部の密度も高くなるため不採用。
 
 Decision: Testing strategy
 - Decision: ユニット/コンポーネントは Vitest + Testing Library、E2E は Playwright、UI 断片の確認は Storybook を用いる。
@@ -47,7 +62,7 @@ Decision: Testing strategy
 
 Decision: Performance target
 - Decision: SC-002 に従い、初回表示で 2 秒以内にユーザが表示開始を認識できる状態を維持する。候補 API の検索は 300ms 程度の入力ディレイを前提にする。
-- Rationale: 無限スクロールとモーダル検索の両立には、一覧と候補 API を分ける設計が有利。
+- Rationale: 無限スクロールと候補検索の両立には、一覧と候補 API を分ける設計が有利。
 - Alternatives considered: クライアント側で全候補を全件保持して前方一致検索。候補数増加時の初回負荷が不安定になるため不採用。
 
 Decision: Deletion semantics

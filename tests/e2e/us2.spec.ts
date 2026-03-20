@@ -107,8 +107,8 @@ test('US2: 検索/タグ絞り込み/ソートで一覧が変わる', async ({ p
   await page.waitForTimeout(350);
   await expect(page.getByRole('heading', { name: 'Apple' })).toBeVisible();
 
-  await page.getByRole('button', { name: 'タグを選択' }).click();
-  await page.getByRole('dialog', { name: 'tag-filter-modal' }).getByText('tag1').click();
+  await page.getByRole('button', { name: 'タグ/コレクションを選択' }).click();
+  await page.getByRole('dialog', { name: 'filter-selection-modal' }).getByText('tag1').click();
   await page.getByRole('button', { name: '適用' }).click();
   await expect(page.getByRole('heading', { name: 'Tagged' })).toBeVisible();
   await expect(page.getByLabel('filters').getByText('tag1')).toBeVisible();

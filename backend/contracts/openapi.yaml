@@ -3,6 +3,58 @@ info:
   title: Card List API (specs/001-card-list)
   version: '0.1.0'
 paths:
+  /api/tags:
+    get:
+      summary: Search selectable tag options for the shared filter modal
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search text for narrowing tag candidates
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FilterOption'
+  /api/collections:
+    get:
+      summary: Search selectable collection options for the shared filter modal
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search text for narrowing collection candidates
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FilterOption'
   /api/cards:
     get:
       summary: List cards with cursor pagination and filters
@@ -23,19 +75,20 @@ paths:
             type: string
           description: Full-text search query (title/content)
         - in: query
-          name: tags
+          name: tagIds
           schema:
             type: string
-          description: Comma-separated tag names or ids
+          description: Comma-separated tag ids
         - in: query
-          name: collection
+          name: collectionIds
           schema:
             type: string
-          description: collection id
+          description: Comma-separated collection ids
         - in: query
           name: filter
           schema:
             type: string
+            enum: [today, overdue, unlearned]
           description: pre-defined filters (e.g., today, overdue, unlearned)
         - in: query
           name: sort
@@ -75,7 +128,7 @@ paths:
                   type: array
                   items:
                     type: string
-                tags:
+                tagIds:
                   type: array
                   items:
                     type: string
@@ -93,8 +146,7 @@ paths:
               type: object
               properties:
                 filter:
-                  type: object
-                  description: filter object matching /api/cards query params (used when cardIds omitted)
+                  $ref: '#/components/schemas/CardListFilter'
                 cardIds:
                   type: array
                   items:
@@ -107,6 +159,17 @@ components:
   schemas:
     Card:
       type: object
+      required:
+        - id
+        - title
+        - content
+        - tags
+        - proficiency
+        - nextReviewAt
+        - lastCorrectRate
+        - isArchived
+        - createdAt
+        - updatedAt
       properties:
         id:
           type: string
@@ -136,3 +199,36 @@ components:
         updatedAt:
           type: string
           format: date-time
+    FilterOption:
+      type: object
+      required:
+        - id
+        - label
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        matchedBy:
+          type: string
+          nullable: true
+          enum: [name, alias, null]
+    CardListFilter:
+      type: object
+      properties:
+        q:
+          type: string
+        filter:
+          type: string
+          enum: [today, overdue, unlearned]
+        sort:
+          type: string
+          enum: [next_review_at, proficiency, created_at]
+        tagIds:
+          type: array
+          items:
+            type: string
+        collectionIds:
+          type: array
+          items:
+            type: string

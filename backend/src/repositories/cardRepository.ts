@@ -132,11 +132,14 @@ export async function deleteCards(cardIds: string[]): Promise<number> {
 }
 
 export async function addTagsToCards(cardIds: string[], tags: string[]): Promise<void> {
-  const tagRows = await Promise.all(
-    tags.map((name) => prisma.tag.upsert({ where: { name }, update: {}, create: { name } })),
-  );
+  const tagRows = await prisma.tag.findMany({
+    where: {
+      OR: [{ id: { in: tags } }, { name: { in: tags } }],
+    },
+    select: { id: true },
+  });
 
-  const tagIds = tagRows.map((t) => t.id);
+  const tagIds = tagRows.map((tag) => tag.id);
   const data = cardIds.flatMap((cardId) => tagIds.map((tagId) => ({ cardId, tagId })));
 
   if (data.length === 0) return;

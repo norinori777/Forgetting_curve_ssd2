@@ -5,7 +5,7 @@ info:
 paths:
   /api/tags:
     get:
-      summary: Search selectable tag options for the filter modal
+      summary: Search selectable tag options for the shared filter modal
       parameters:
         - in: query
           name: q
@@ -31,7 +31,7 @@ paths:
                       $ref: '#/components/schemas/FilterOption'
   /api/collections:
     get:
-      summary: Search selectable collection options for the filter modal
+      summary: Search selectable collection options for the shared filter modal
       parameters:
         - in: query
           name: q
@@ -88,7 +88,8 @@ paths:
           name: filter
           schema:
             type: string
-          description: pre-defined filters (e.g., today, overdue, unlearned)
+            enum: [today, overdue, unlearned]
+          description: single-select status filter chosen from the dropdown
         - in: query
           name: sort
           schema:
