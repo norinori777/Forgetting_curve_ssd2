@@ -3,83 +3,77 @@
 **入力**: `specs/001-card-list/` 配下の設計ドキュメント  
 **前提条件**: `plan.md`、`spec.md`、`research.md`、`data-model.md`、`contracts/openapi.yaml`
 
-**テスト**: この機能では仕様と憲法の両方で回帰防止が重要なため、各ユーザーストーリーに自動テストを含める。
+**テスト**: この機能では `spec.md` の User Scenarios & Testing と `test.md` の最低要件に従い、各ユーザーストーリーに自動テストを含める。
 
 **構成**: タスクはユーザーストーリーごとに分け、各ストーリーを独立して実装・検証できるようにする。
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Tailwind と共有型・クライアントの土台を整え、後続実装の前提を揃える
+**Purpose**: ルーティング導入とトップレベルページの雛形を整え、後続ストーリーの作業面を揃える
 
-- [X] T001 Configure Tailwind and PostCSS bootstrap in frontend/package.json, frontend/postcss.config.js, and frontend/tailwind.config.ts
-- [X] T002 [P] Wire Tailwind entry styles in frontend/src/index.css and frontend/src/main.tsx
-- [X] T003 [P] Create theme token adapters in frontend/src/utils/theme/themeTokens.ts and frontend/src/utils/theme/tailwindTheme.ts
-- [X] T004 [P] Create shared list DTO and API client scaffolding in backend/src/domain/cardList.ts, frontend/src/domain/cardList.ts, frontend/src/services/api/cardListApi.ts, frontend/src/services/api/reviewApi.ts, and frontend/src/services/api/bulkApi.ts
+- [X] T001 Add React Router dependency and bootstrap support in frontend/package.json and frontend/src/main.tsx
+- [X] T002 [P] Create top-level placeholder page components in frontend/src/pages/Home.tsx, frontend/src/pages/Review.tsx, frontend/src/pages/Stats.tsx, and frontend/src/pages/Settings.tsx
+- [X] T003 [P] Create top-level route metadata for navigation and breadcrumbs in frontend/src/utils/routes/topLevelPages.ts
 
-**Checkpoint**: Tailwind 基盤、トークン参照、共通 DTO / API クライアントの配置先が利用可能になる
+**Checkpoint**: ルーティングに必要な依存関係とトップレベルページの配置先が揃う
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: 全ユーザーストーリーが依存する一覧契約、ページング、共通 UI 部品を整える
+**Purpose**: すべてのユーザーストーリーに共通するレイアウト基盤と route-aware な画面切り替えを整える
 
 **⚠️ CRITICAL**: このフェーズ完了前にユーザーストーリー作業を始めない
 
-- [X] T005 Move and register card, review, and bulk HTTP entrypoints in backend/src/api/cards.ts, backend/src/api/review.ts, backend/src/api/bulk.ts, and backend/src/index.ts
-- [X] T006 [P] Update shared list and review schemas for single-select status filter and array ids in backend/src/schemas/cards.ts and backend/src/schemas/review.ts
-- [X] T007 [P] Implement shared card filtering and cursor pagination logic in backend/src/repositories/cardRepository.ts and backend/src/services/searchService.ts
-- [X] T008 [P] Create option lookup client and shared filter serializers in frontend/src/services/api/filterOptionsApi.ts, frontend/src/services/api/cardListApi.ts, frontend/src/services/api/reviewApi.ts, and frontend/src/services/api/bulkApi.ts
-- [X] T009 [P] Align backend and frontend list filter types in backend/src/domain/cardList.ts and frontend/src/domain/cardList.ts
-- [X] T010 [P] Build reusable modal and async-state primitives in frontend/src/components/uiParts/ModalShell.tsx, frontend/src/components/uiParts/OptionList.tsx, frontend/src/components/uiParts/AsyncState.tsx, and frontend/src/components/uiParts/RetryBanner.tsx
-- [X] T011 Update backend regression coverage for shared list and review filter contracts in tests/backend/cards.test.ts and tests/backend/review.test.ts
+- [X] T004 Create shared fixed header, breadcrumb, and footer shell in frontend/src/components/uiParts/AppLayout.tsx
+- [X] T005 Wire top-level routes and Outlet-based page switching in frontend/src/App.tsx and frontend/src/pages/CardList.tsx
+- [X] T006 [P] Add route-aware smoke coverage for home and `/cards` navigation in tests/e2e/us1.spec.ts and tests/frontend/cardListStates.test.tsx
 
-**Checkpoint**: 共通 API 契約、カーソルページング、共有 UI プリミティブが揃い、各ユーザーストーリーを独立着手できる
+**Checkpoint**: 共通レイアウトと `/` / `/cards` / プレースホルダールートの切り替え基盤が揃う
 
 ---
 
 ## Phase 3: User Story 1 - 今日の復習から開始 (Priority: P1) 🎯 MVP
 
-**Goal**: 今日の復習に該当するカードを一覧から見つけ、そのまま復習開始できるようにする
+**Goal**: `/cards` の一覧から今日の復習対象を見つけ、そのまま現在の絞り込み結果で復習開始できるようにする
 
-**Independent Test**: ステータスプルダウンで「今日の復習」を選択し、「復習開始」を押すと、現在表示中のカード群で復習セッションが始まること
+**Independent Test**: `/cards` でステータスを「今日の復習」に切り替え、「復習開始」を押すと、現在表示中のカード群で復習セッションが始まること
 
 ### Tests for User Story 1
 
-- [X] T012 [P] [US1] Add review-start filter propagation coverage in tests/backend/review.test.ts
-- [X] T013 [P] [US1] Add today-review dropdown journey coverage in tests/e2e/us1.spec.ts and tests/frontend/cardListStates.test.tsx
+- [X] T007 [P] [US1] Add current-filter review-start contract coverage in tests/backend/review.test.ts
+- [X] T008 [P] [US1] Update route-aware today-review journey in tests/e2e/us1.spec.ts and tests/frontend/cardListStates.test.tsx
 
 ### Implementation for User Story 1
 
-- [X] T014 [P] [US1] Implement status dropdown and review CTA controls in frontend/src/components/uiParts/SearchBar.tsx and frontend/src/components/uiParts/StartReviewButton.tsx
-- [X] T015 [P] [US1] Restyle review-first card rows in frontend/src/components/uniqueParts/CardItem.tsx and frontend/src/stories/CardItem.stories.tsx
-- [X] T016 [US1] Wire today-review list loading, cursor reset, and review start flow in frontend/src/pages/CardList.tsx, frontend/src/services/api/cardListApi.ts, and frontend/src/services/api/reviewApi.ts
+- [X] T009 [P] [US1] Align review request validation and filter fallback behavior in backend/src/api/review.ts and backend/src/schemas/review.ts
+- [X] T010 [P] [US1] Update review call-to-action rendering in frontend/src/components/uiParts/StartReviewButton.tsx and frontend/src/components/uniqueParts/CardItem.tsx
+- [X] T011 [US1] Route `/cards` list loading and current-filter review start flow in frontend/src/pages/CardList.tsx and frontend/src/services/api/reviewApi.ts
 
-**Checkpoint**: User Story 1 は単独で動作し、一覧から復習開始までを確認できる
+**Checkpoint**: User Story 1 を単独で実行し、一覧から復習開始までを確認できる
 
 ---
 
 ## Phase 4: User Story 2 - 検索/絞り込みで目的のカードを見つける (Priority: P2)
 
-**Goal**: キーワード検索、ステータスプルダウン、タグ/コレクション共用モーダル、一覧上部ソートで目的のカードを見つけられるようにする
+**Goal**: キーワード検索、単一選択ステータス、タグ/コレクション共用モーダル、一覧上部ソートで目的のカードを見つけられるようにする
 
-**Independent Test**: キーワード検索、ステータス変更、共用モーダルでのタグ選択、一覧上部でのソート変更を個別に適用したときに一覧結果が期待通りに変化すること
+**Independent Test**: キーワード検索、ステータス変更、共用モーダルでのタグまたはコレクション選択、一覧上部でのソート変更を個別に適用したときに一覧結果が期待通りに変化すること
 
 ### Tests for User Story 2
 
-- [X] T017 [P] [US2] Add option-endpoint contract coverage in tests/backend/filterOptions.test.ts
-- [X] T018 [P] [US2] Add shared modal search and embedded-sort journey coverage in tests/e2e/us2.spec.ts
-- [X] T019 [P] [US2] Add keyboard-only filter and async-state coverage in tests/e2e/us2.spec.ts and tests/frontend/cardListStates.test.tsx
+- [X] T012 [P] [US2] Add filter query and option endpoint coverage in tests/backend/cards.test.ts and tests/backend/filterOptions.test.ts
+- [X] T013 [P] [US2] Update shared-modal, sort, and route-based filter journey in tests/e2e/us2.spec.ts
+- [X] T014 [P] [US2] Add keyboard-only filter and async-state coverage in tests/frontend/cardListStates.test.tsx
 
 ### Implementation for User Story 2
 
-- [X] T020 [P] [US2] Add option query validation and shared-modal route handlers in backend/src/schemas/options.ts, backend/src/api/tags.ts, backend/src/api/collections.ts, and backend/src/index.ts
-- [X] T021 [US2] Implement tag and collection option lookup queries for the shared modal in backend/src/repositories/cardRepository.ts and backend/src/services/searchService.ts
-- [X] T022 [P] [US2] Build shared filter modal with radio toggle in frontend/src/components/uniqueParts/FilterSelectionModal.tsx and frontend/src/components/uniqueParts/FilterSelector.tsx
-- [X] T023 [P] [US2] Implement status dropdown and embedded sort UI in frontend/src/components/uiParts/SearchBar.tsx and frontend/src/stories/SearchBar.stories.tsx
-- [X] T024 [US2] Wire keyword search, status dropdown, shared modal selections, selected summaries, loading/empty/error states, and cursor reset in frontend/src/pages/CardList.tsx, frontend/src/services/api/filterOptionsApi.ts, frontend/src/domain/cardList.ts, frontend/src/components/uiParts/AsyncState.tsx, and frontend/src/components/uiParts/RetryBanner.tsx
+- [X] T015 [P] [US2] Align list query parsing with single-select status and cursor reset rules in backend/src/schemas/cards.ts and backend/src/api/cards.ts
+- [X] T016 [P] [US2] Implement shared tag and collection option lookups in backend/src/api/tags.ts, backend/src/api/collections.ts, backend/src/schemas/options.ts, and backend/src/repositories/cardRepository.ts
+- [X] T017 [P] [US2] Replace separate filter controls with shared modal UI in frontend/src/components/uniqueParts/FilterSelectionModal.tsx, frontend/src/components/uniqueParts/FilterSelector.tsx, and frontend/src/components/uiParts/SearchBar.tsx
+- [X] T018 [US2] Wire keyword, status, tag, collection, sort, loading, empty, error, and cursor-reset behavior in frontend/src/pages/CardList.tsx, frontend/src/services/api/cardListApi.ts, and frontend/src/services/api/filterOptionsApi.ts
 
-**Checkpoint**: User Story 2 は単独で動作し、共用モーダルと一覧上部ソートで目的カードを発見できる
+**Checkpoint**: User Story 2 を単独で実行し、検索・絞り込み・ソートで目的カードを発見できる
 
 ---
 
@@ -87,34 +81,32 @@
 
 **Goal**: 選択中カードに対してアーカイブ、削除、タグ追加/削除を安全に一括実行できるようにする
 
-**Independent Test**: 複数選択後にアーカイブまたは削除を実行すると選択カードだけが更新され、削除は確認モーダルを経由すること
+**Independent Test**: 複数選択後にアーカイブまたは削除を実行すると選択カードだけが更新され、削除は確認モーダルを経由し、タグ追加/削除は no-op を成功扱いにすること
 
 ### Tests for User Story 3
 
-- [X] T025 [P] [US3] Update bulk archive, delete, and bulk-tag journey coverage in tests/e2e/us3.spec.ts
-- [X] T026 [P] [US3] Update delete confirmation and selection interaction coverage in tests/frontend/deleteModal.test.tsx and tests/frontend/cardListStates.test.tsx
+- [X] T019 [P] [US3] Add bulk archive and idempotent tag-mutation coverage in tests/backend/cards.test.ts
+- [X] T020 [P] [US3] Update multi-select, archive, delete, and bulk-tag journeys in tests/e2e/us3.spec.ts and tests/frontend/deleteModal.test.tsx
 
 ### Implementation for User Story 3
 
-- [X] T027 [P] [US3] Align bulk request validation and tag mutation handling in backend/src/schemas/bulk.ts, backend/src/api/bulk.ts, backend/src/repositories/cardRepository.ts, and backend/src/domain/cardList.ts
-- [X] T028 [P] [US3] Expand keyboard-accessible selection controls and bulk affordances in frontend/src/components/uniqueParts/SelectionBar.tsx and frontend/src/hooks/useSelection.ts
-- [X] T029 [P] [US3] Restyle irreversible delete confirmation and card action affordances in frontend/src/components/uniqueParts/DeleteConfirmModal.tsx and frontend/src/components/uniqueParts/CardItem.tsx
-- [X] T030 [US3] Wire archive, delete, and bulk tag actions into frontend/src/pages/CardList.tsx, frontend/src/services/api/bulkApi.ts, frontend/src/components/uniqueParts/SelectionBar.tsx, and frontend/src/components/uniqueParts/CardItem.tsx
+- [X] T021 [P] [US3] Enforce bulk action validation and idempotent repository semantics in backend/src/schemas/bulk.ts, backend/src/api/bulk.ts, and backend/src/repositories/cardRepository.ts
+- [X] T022 [P] [US3] Update selection and keyboard affordances in frontend/src/hooks/useSelection.ts and frontend/src/components/uiParts/SelectionBar.tsx
+- [X] T023 [P] [US3] Update destructive-action and row-action UI in frontend/src/components/uniqueParts/DeleteConfirmModal.tsx and frontend/src/components/uniqueParts/CardItem.tsx
+- [X] T024 [US3] Wire archive, delete, bulk-tag, and selection-clear flows in frontend/src/pages/CardList.tsx and frontend/src/services/api/bulkApi.ts
 
-**Checkpoint**: User Story 3 は単独で動作し、複数選択とバルク操作を安全に完了できる
+**Checkpoint**: User Story 3 を単独で実行し、複数選択とバルク操作を安全に完了できる
 
 ---
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-**Purpose**: 仕様、ドキュメント、検証、品質確認を最終整合する
+**Purpose**: ドキュメント、Storybook、アクセシビリティ、性能、検証手順を最終整合する
 
-- [X] T031 [P] Update Storybook coverage for shared filter, card item, selection bar, and delete modal in frontend/src/stories/SearchBar.stories.tsx, frontend/src/stories/CardItem.stories.tsx, frontend/src/stories/SelectionBar.stories.tsx, and frontend/src/stories/DeleteConfirmModal.stories.tsx
-- [X] T032 [P] Sync API and screen documentation in backend/contracts/openapi.yaml, docs/api/card-list.md, specs/001-card-list/contracts/openapi.yaml, specs/001-card-list/quickstart.md, and specs/001-card-list/ascii_ui.txt
-- [X] T033 [P] Refresh accessibility guidance and initial render baseline in frontend/accessibility-audit.md and tests/perf/initialRender.test.tsx
-- [X] T034 Run unit and integration validation in package.json, vitest.config.ts, tests/backend/cards.test.ts, tests/backend/review.test.ts, tests/backend/filterOptions.test.ts, tests/frontend/cardListStates.test.tsx, and tests/frontend/deleteModal.test.tsx
-- [X] T035 Run end-to-end validation in package.json, playwright.config.ts, tests/e2e/us1.spec.ts, tests/e2e/us2.spec.ts, and tests/e2e/us3.spec.ts
-- [X] T036 Run build and lint validation in package.json, backend/package.json, frontend/package.json, backend/tsconfig.json, and frontend/tsconfig.json
+- [X] T025 [P] Sync route and API documentation in specs/001-card-list/ascii_ui.txt, specs/001-card-list/quickstart.md, specs/001-card-list/contracts/openapi.yaml, backend/contracts/openapi.yaml, and docs/api/card-list.md
+- [X] T026 [P] Refresh Storybook coverage in frontend/src/stories/CardItem.stories.tsx, frontend/src/stories/SearchBar.stories.tsx, frontend/src/stories/SelectionBar.stories.tsx, frontend/src/stories/StartReviewButton.stories.tsx, and frontend/src/stories/DeleteConfirmModal.stories.tsx
+- [X] T027 [P] Update accessibility and performance checks in frontend/accessibility-audit.md and tests/perf/initialRender.test.tsx
+- [X] T028 Run lint, unit/integration, and E2E validation via package.json, backend/package.json, frontend/package.json, tests/backend/cards.test.ts, tests/backend/review.test.ts, tests/backend/filterOptions.test.ts, tests/frontend/cardListStates.test.tsx, tests/frontend/deleteModal.test.tsx, tests/e2e/us1.spec.ts, tests/e2e/us2.spec.ts, and tests/e2e/us3.spec.ts
 
 ---
 
@@ -122,23 +114,23 @@
 
 ### Phase Dependencies
 
-- Setup (Phase 1): 依存なし。すぐ開始できる
-- Foundational (Phase 2): Phase 1 完了後に開始し、すべてのユーザーストーリーをブロックする
-- User Story 1 (Phase 3): Phase 2 完了後に開始できる。MVP の最小範囲
-- User Story 2 (Phase 4): Phase 2 完了後に開始できる。US1 と別担当でも進められる
-- User Story 3 (Phase 5): Phase 2 完了後に開始できるが、US2 の共用モーダル基盤が揃うと bulk tag 操作との整合が取りやすい
-- Polish (Phase 6): 実装対象のユーザーストーリー完了後に開始する
+- **Setup (Phase 1)**: 依存なし。すぐ開始できる
+- **Foundational (Phase 2)**: Phase 1 完了後に開始し、すべてのユーザーストーリーをブロックする
+- **User Story 1 (Phase 3)**: Phase 2 完了後に開始できる。MVP の最小範囲
+- **User Story 2 (Phase 4)**: Phase 2 完了後に開始できる。US1 と独立に検証できる
+- **User Story 3 (Phase 5)**: Phase 2 完了後に開始できる。bulk tag UI は US2 の共用モーダル整備後に統合しやすい
+- **Polish (Phase 6)**: 実装対象のユーザーストーリー完了後に開始する
 
 ### User Story Dependencies
 
-- User Story 1 (P1): Foundational のみ依存。最短で価値を出せる MVP
-- User Story 2 (P2): Foundational のみ依存。検索・絞り込みの発見性改善を独立検証できる
-- User Story 3 (P3): Foundational のみで着手可能。ただしタグ追加/削除 UI は US2 の共用モーダルと整合を取って進める
+- **User Story 1 (P1)**: Foundational のみ依存。最短で価値を出せる MVP
+- **User Story 2 (P2)**: Foundational のみ依存。検索・絞り込みの発見性改善を独立検証できる
+- **User Story 3 (P3)**: Foundational のみ依存。ただし bulk tag 操作の UI 統合は US2 の共用モーダル実装後の方が進めやすい
 
 ### Within Each User Story
 
-- テストタスクを先に実装し、失敗を確認してから本実装へ進む
-- バックエンド契約とデータ取得を先に揃え、その後 UI 統合を行う
+- テストタスクを先に作成し、失敗を確認してから本実装へ進む
+- API / schema / repository の調整を先に行い、その後 UI 統合へ進む
 - 1 ストーリーが独立して通る状態を作ってから次の優先度へ進む
 
 ---
@@ -148,31 +140,31 @@
 ### User Story 1
 
 ```bash
-Task: T012 Add review-start filter propagation coverage in tests/backend/review.test.ts
-Task: T013 Add today-review dropdown journey coverage in tests/e2e/us1.spec.ts and tests/frontend/cardListStates.test.tsx
-Task: T014 Implement status dropdown and review CTA controls in frontend/src/components/uiParts/SearchBar.tsx and frontend/src/components/uiParts/StartReviewButton.tsx
-Task: T015 Restyle review-first card rows in frontend/src/components/uniqueParts/CardItem.tsx and frontend/src/stories/CardItem.stories.tsx
+Task: T007 Add current-filter review-start contract coverage in tests/backend/review.test.ts
+Task: T008 Update route-aware today-review journey in tests/e2e/us1.spec.ts and tests/frontend/cardListStates.test.tsx
+Task: T009 Align review request validation and filter fallback behavior in backend/src/api/review.ts and backend/src/schemas/review.ts
+Task: T010 Update review call-to-action rendering in frontend/src/components/uiParts/StartReviewButton.tsx and frontend/src/components/uniqueParts/CardItem.tsx
 ```
 
 ### User Story 2
 
 ```bash
-Task: T017 Add option-endpoint contract coverage in tests/backend/filterOptions.test.ts
-Task: T018 Add shared modal search and embedded-sort journey coverage in tests/e2e/us2.spec.ts
-Task: T019 Add keyboard-only filter and async-state coverage in tests/e2e/us2.spec.ts and tests/frontend/cardListStates.test.tsx
-Task: T020 Add option query validation and shared-modal route handlers in backend/src/schemas/options.ts, backend/src/api/tags.ts, backend/src/api/collections.ts, and backend/src/index.ts
-Task: T022 Build shared filter modal with radio toggle in frontend/src/components/uniqueParts/FilterSelectionModal.tsx and frontend/src/components/uniqueParts/FilterSelector.tsx
-Task: T023 Implement status dropdown and embedded sort UI in frontend/src/components/uiParts/SearchBar.tsx and frontend/src/stories/SearchBar.stories.tsx
+Task: T012 Add filter query and option endpoint coverage in tests/backend/cards.test.ts and tests/backend/filterOptions.test.ts
+Task: T013 Update shared-modal, sort, and route-based filter journey in tests/e2e/us2.spec.ts
+Task: T014 Add keyboard-only filter and async-state coverage in tests/frontend/cardListStates.test.tsx
+Task: T015 Align list query parsing with single-select status and cursor reset rules in backend/src/schemas/cards.ts and backend/src/api/cards.ts
+Task: T016 Implement shared tag and collection option lookups in backend/src/api/tags.ts, backend/src/api/collections.ts, backend/src/schemas/options.ts, and backend/src/repositories/cardRepository.ts
+Task: T017 Replace separate filter controls with shared modal UI in frontend/src/components/uniqueParts/FilterSelectionModal.tsx, frontend/src/components/uniqueParts/FilterSelector.tsx, and frontend/src/components/uiParts/SearchBar.tsx
 ```
 
 ### User Story 3
 
 ```bash
-Task: T025 Update bulk archive, delete, and bulk-tag journey coverage in tests/e2e/us3.spec.ts
-Task: T026 Update delete confirmation and selection interaction coverage in tests/frontend/deleteModal.test.tsx and tests/frontend/cardListStates.test.tsx
-Task: T027 Align bulk request validation and tag mutation handling in backend/src/schemas/bulk.ts, backend/src/api/bulk.ts, backend/src/repositories/cardRepository.ts, and backend/src/domain/cardList.ts
-Task: T028 Expand keyboard-accessible selection controls and bulk affordances in frontend/src/components/uniqueParts/SelectionBar.tsx and frontend/src/hooks/useSelection.ts
-Task: T029 Restyle irreversible delete confirmation and card action affordances in frontend/src/components/uniqueParts/DeleteConfirmModal.tsx and frontend/src/components/uniqueParts/CardItem.tsx
+Task: T019 Add bulk archive and idempotent tag-mutation coverage in tests/backend/cards.test.ts
+Task: T020 Update multi-select, archive, delete, and bulk-tag journeys in tests/e2e/us3.spec.ts and tests/frontend/deleteModal.test.tsx
+Task: T021 Enforce bulk action validation and idempotent repository semantics in backend/src/schemas/bulk.ts, backend/src/api/bulk.ts, and backend/src/repositories/cardRepository.ts
+Task: T022 Update selection and keyboard affordances in frontend/src/hooks/useSelection.ts and frontend/src/components/uiParts/SelectionBar.tsx
+Task: T023 Update destructive-action and row-action UI in frontend/src/components/uniqueParts/DeleteConfirmModal.tsx and frontend/src/components/uniqueParts/CardItem.tsx
 ```
 
 ---
@@ -181,13 +173,13 @@ Task: T029 Restyle irreversible delete confirmation and card action affordances 
 
 ### MVP First (User Story 1 Only)
 
-1. Phase 1 を完了して Tailwind / トークン / 共通クライアントの基盤を整える
-2. Phase 2 を完了して一覧契約、カーソルページング、共通 UI プリミティブを揃える
+1. Phase 1 を完了して React Router 依存とページ雛形を揃える
+2. Phase 2 を完了して共通レイアウトと `/cards` 遷移基盤を整える
 3. Phase 3 を完了して「今日の復習 → 復習開始」の最短導線を成立させる
 4. User Story 1 を単独で検証してから次フェーズへ進む
 
 ### Incremental Delivery
 
-1. User Story 2 で検索、ステータスプルダウン、共用モーダル、一覧上部ソートを完成させる
-2. User Story 3 で選択、削除確認、バルク操作を完成させる
-3. 最後に Storybook、ドキュメント、アクセシビリティ、性能、ビルド、lint、E2E をまとめて整える
+1. User Story 2 で検索、ステータス、共用モーダル、一覧上部ソートを完成させる
+2. User Story 3 で選択、削除確認、タグ追加/削除、アーカイブを完成させる
+3. 最後に Storybook、ドキュメント、アクセシビリティ、性能、lint、テストをまとめて整える

@@ -121,4 +121,31 @@ describe('backend review API', () => {
     expect(res.body.sessionId).toBeTruthy();
     expect(res.body.cardIds).toEqual(['c1']);
   });
+
+  it('prefers explicit cardIds when both cardIds and filter are provided', async () => {
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/review/start')
+      .send({
+        cardIds: ['c2'],
+        filter: {
+          sort: 'next_review_at',
+          tagIds: ['tag1'],
+          collectionIds: ['col1'],
+        },
+      })
+      .expect(200);
+
+    expect(res.body.sessionId).toBeTruthy();
+    expect(res.body.cardIds).toEqual(['c2']);
+  });
+
+  it('rejects review start requests without filter and cardIds', async () => {
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app).post('/api/review/start').send({}).expect(400);
+
+    expect(res.body.error).toBe('invalid_body');
+  });
 });

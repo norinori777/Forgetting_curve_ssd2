@@ -73,6 +73,9 @@ test('US1: 今日の復習 → 復習開始', async ({ page }) => {
 
   await page.goto('/');
 
+  await expect(page.getByRole('heading', { name: 'ホーム' })).toBeVisible();
+  await page.getByRole('link', { name: 'カード一覧' }).click();
+
   await expect(page.getByRole('heading', { name: 'カード一覧' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Normal 1' })).toBeVisible();
 

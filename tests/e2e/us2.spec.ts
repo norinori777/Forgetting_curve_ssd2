@@ -1,4 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+async function openCardList(page: Page) {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'ホーム' })).toBeVisible();
+  await page.getByRole('link', { name: 'カード一覧' }).click();
+  await expect(page.getByRole('heading', { name: 'カード一覧' })).toBeVisible();
+}
 
 test('US2: 検索/タグ絞り込み/ソートで一覧が変わる', async ({ page }) => {
   await page.route('**/api/cards**', async (route) => {
@@ -100,7 +107,7 @@ test('US2: 検索/タグ絞り込み/ソートで一覧が変わる', async ({ p
     });
   });
 
-  await page.goto('/');
+  await openCardList(page);
   await expect(page.getByRole('heading', { name: 'Base' })).toBeVisible();
 
   await page.getByLabel('検索').fill('apple');

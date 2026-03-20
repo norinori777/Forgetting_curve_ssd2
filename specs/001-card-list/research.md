@@ -1,73 +1,73 @@
 # research.md
 
-Decision: Language / Runtime
-- Decision: フロントエンド・バックエンドともに TypeScript を採用し、Node.js 18 以上で動作させる。
-- Rationale: リポジトリは workspace 構成で TypeScript 5.5 系、Vite、Vitest、Playwright に統一されている。既存構成を維持した方が導入コストと学習コストが最小になる。
-- Alternatives considered: 別ランタイムや別言語の導入。既存コード・CI・テスト基盤との不整合が大きいため不採用。
+## Runtime and repository strategy
 
-Decision: Frontend framework
-- Decision: React 18 + Vite 5 + Storybook 8 を継続利用する。
-- Rationale: 既存 `frontend` は React 18 / Vite / Storybook で構成されており、カード一覧 UI とモーダルベースの操作分離に適している。
-- Alternatives considered: Vue / Svelte への移行。今回の変更は UI 改修であり、フレームワーク変更はスコープ外。
+- Decision: frontend / backend ともに既存の TypeScript + Node.js 18+ モノレポ構成を維持する。
+- Rationale: ルート `package.json` と workspace 構成が既に整っており、Vitest、Playwright、Prisma、Storybook もこの前提で揃っているため、最小変更で feature を拡張できる。
+- Alternatives considered: 別言語や別ランタイムの導入。既存 CI と開発フローを崩すため不採用。
 
-Decision: Styling architecture
-- Decision: UI 実装は Tailwind CSS を利用し、`specs/001-card-list/theme.json` を Tailwind theme 拡張のソースとして利用する。
-- Rationale: 仕様で `theme.json` と `ascii_ui.txt` を画面構成・デザイントークンの基準にすることが明確化された。Tailwind はトークン駆動の再利用と画面全体の一貫性に向いている。
-- Alternatives considered: CSS Modules 継続、インライン style、個別 CSS の直書き。トークン統一と再利用の要件に反するため不採用。
+## Routing architecture for top-level pages
 
-Decision: Theme token strategy
-- Decision: `theme.json` は Tailwind の `extend.colors`, `fontFamily`, `fontSize`, `spacing`, `borderRadius`, `screens` に読み込む。
-- Rationale: `theme.json` は Tailwind 形式に近い JSON であり、変換層を薄く保てる。
-- Alternatives considered: CSS Variables を唯一の参照元にする。将来的には併用可能だが、現時点では Tailwind 連携を優先する。
+- Decision: frontend workspace に React Router DOM 6 系を追加し、`App.tsx` で共通レイアウト + トップレベルルート構成を持たせる。
+- Rationale: clarified spec で `/`、`/cards`、`/review`、`/stats`、`/settings` の実ルートが必須になった。React 18 と相性がよく、共通ヘッダー・パンくず・フッターを維持しつつ本文だけを差し替える要件に合う。
+- Alternatives considered: 独自 state による疑似ルーティング。URL 共有性とブラウザ履歴連携が弱く、spec の「実ルート」要件も満たしにくいため不採用。
 
-Decision: Backend / API
-- Decision: Node.js + Express + Zod + Prisma で REST API を継続し、カード一覧取得・タグ候補取得・コレクション候補取得を提供する。
-- Rationale: `backend` には Express と Zod、Prisma の構成がすでに存在し、追加 API も同じ層で実装するのが自然。
-- Alternatives considered: GraphQL 導入。候補検索と一覧取得には過剰であり、現行構成と乖離するため不採用。
+## Card list orchestration remains page-owned
 
-Decision: Storage / DB
-- Decision: PostgreSQL + Prisma schema を正とする。
-- Rationale: `prisma/schema.prisma` が PostgreSQL datasource と `Card`, `Tag`, `Collection`, `CardTag` の関係をすでに定義している。
-- Alternatives considered: NoSQL。タグ・コレクション・並び替え・カーソルの整合を考えると関係 DB の方が適切。
+- Decision: 一覧の検索、絞り込み、選択、無限スクロール、復習開始、削除確認の状態は `frontend/src/pages/CardList.tsx` を中心に保持し、部品は presentational に寄せる。
+- Rationale: 現在の実装は `CardList.tsx` が `queryKey`、`useSelection`、`IntersectionObserver`、モーダル開閉、API 呼び出しを一貫管理しており、ここを壊さずルーティングだけ外側に追加するのが最も安全。
+- Alternatives considered: Zustand や Context への即時移行。今回のスコープでは再設計コストが大きく、既存挙動維持の制約に反するため不採用。
 
-Decision: Multi-select filter serialization
-- Decision: タグとコレクションは UI では複数選択とし、API では `tagIds` / `collectionIds` をクエリまたは JSON body の配列として扱う。
-- Rationale: ボタン横表示はラベル、通信は ID に分離することで、表示変更や名称重複に強くなる。
-- Alternatives considered: 名前文字列のまま送る。表示名変更や重複名で不安定になるため不採用。
+## Shared filter modal pattern
 
-Decision: Shared option modal
-- Decision: タグとコレクションの選択は、上部ラジオボタンで対象を切り替える単一の共用モーダルで提供する。
-- Rationale: モーダル構造、検索欄、チェックボックス一覧、フォーカス管理を共通化でき、重複実装を減らせる。ラジオボタンは排他的な対象切り替えを明確に表現でき、アクセシビリティと低工数の両立に向く。
-- Alternatives considered: タグ用とコレクション用の別モーダル。保守コストと状態管理の重複が増えるため不採用。
+- Decision: タグとコレクションの絞り込みは、ラジオで対象を切り替える単一の `FilterSelectionModal` を継続利用する。
+- Rationale: 現在の実装が `activeTarget`、`allowCollections`、`initialSelection` を持つ共用部品として成立しており、spec の FR-004a〜FR-004d と一致している。タグ一括付与/削除にも同一モーダルをタグ限定モードで再利用できる。
+- Alternatives considered: タグ用とコレクション用の別モーダル。コードとテストの重複が増えるため不採用。
 
-Decision: Option source for shared modal search
-- Decision: 共用モーダルの候補取得用に `GET /api/tags` と `GET /api/collections` を追加し、ラジオ選択中の対象に応じて切り替えて利用する。
-- Rationale: 候補検索は一覧 API に混ぜず、独立した候補 API とした方が責務が明確でキャッシュしやすい。単一モーダルでもデータソースを分離することで既存の Tag / Collection モデルをそのまま利用できる。
-- Alternatives considered: 初回一覧レスポンスに全候補を埋め込む。大量データ時の初回応答が重くなるため不採用。
+## Theme token source of truth
 
-Decision: Status filter control
-- Decision: ステータスフィルタは「今日の復習」「期限切れ」「未学習」を選べる単一選択のプルダウンで提供する。
-- Rationale: 相互排他的な条件として扱う方が UI と実装の両方で明確であり、個別トグルよりも状態競合を減らせる。ネイティブの select を使えばアクセシビリティと実装コストのバランスが良い。
-- Alternatives considered: 複数のトグルボタンやチェックボックス。複数同時選択が可能に見えやすく、要件とのズレが生じるため不採用。
+- Decision: デザイントークンの正本はリポジトリルートの `theme.json` とし、Tailwind theme extension へそのまま流し込む。
+- Rationale: 実ファイルは root に存在し、`colors`、`fontFamily`、`fontSize`、`spacing`、`borderRadius`、`screens` が Tailwind に近い形で定義されている。直書き CSS を避ける要件とも整合する。
+- Alternatives considered: CSS Modules や手書き CSS を併用する。トークン一貫性が崩れやすく不採用。
 
-Decision: Sort placement
-- Decision: ソート条件は独立したツールバー行ではなく、一覧表の上部タイトル領域に埋め込んで表示する。
-- Rationale: データに対する操作であることが分かりやすく、縦方向のスペースを節約できる。リスト文脈内で現在の並び順を把握しやすく、ASCII UI と実装の対応も取りやすい。
-- Alternatives considered: 一覧外の独立した操作行。視線移動が増え、画面上部の密度も高くなるため不採用。
+## API layering and validation
 
-Decision: Testing strategy
-- Decision: ユニット/コンポーネントは Vitest + Testing Library、E2E は Playwright、UI 断片の確認は Storybook を用いる。
-- Rationale: 既存リポジトリの test runner と完全に一致している。Tailwind 導入後も回帰確認を継続できる。
-- Alternatives considered: Jest 追加。Vitest が既にあるため重複導入は不要。
+- Decision: HTTP 入力は `backend/src/schemas` の Zod で検証し、永続化は `backend/src/repositories/cardRepository.ts` に集中させる既存レイヤリングを維持する。
+- Rationale: `listCardsQuerySchema`、`bulkRequestSchema`、`reviewStartRequestSchema` が既にあり、Prisma クエリも repository に閉じているため、設計上の責務分離が明確。
+- Alternatives considered: route 内で直接 Prisma を呼ぶ。テストしづらく、分岐条件が散るため不採用。
 
-Decision: Performance target
-- Decision: SC-002 に従い、初回表示で 2 秒以内にユーザが表示開始を認識できる状態を維持する。候補 API の検索は 300ms 程度の入力ディレイを前提にする。
-- Rationale: 無限スクロールと候補検索の両立には、一覧と候補 API を分ける設計が有利。
-- Alternatives considered: クライアント側で全候補を全件保持して前方一致検索。候補数増加時の初回負荷が不安定になるため不採用。
+## Cursor pagination contract
 
-Decision: Deletion semantics
-- Decision: 削除は物理削除のままとし、UI は Tailwind 化しても削除確認フローと挙動は変更しない。
-- Rationale: 憲法と spec の既存判断を維持する必要がある。
-- Alternatives considered: 論理削除への切り替え。今回の変更は UI とデザインが中心であり、仕様変更にあたるため不採用。
+- Decision: 一覧 API は `nextCursor` を返すカーソル方式を維持し、カーソルは `sort` と比較値、`id` を base64url 化した opaque token とする。
+- Rationale: `backend/src/schemas/cards.ts` に `CursorPayload`、`encodeCursor`、`decodeCursor` が既にあり、`query.sort` 不一致も検出できる。ソート変更時のカーソル無効化と相性がよい。
+- Alternatives considered: オフセットページング。件数増加時の性能と安定性で劣るため不採用。
 
+## Query-change behavior
 
+- Decision: 検索、フィルタ、ソートの query key が変わった時点で、選択状態を全クリアし、一覧データは先頭から再取得する。
+- Rationale: 現在の `CardList.tsx` は `queryKey` 依存の `useEffect` で `selection.clear()` と再取得を行っており、clarified spec の FR-007c と一致する。見えないカードへの誤操作を防げる。
+- Alternatives considered: 表示内だけ選択維持、または全選択維持。バルク対象の可視性が下がり、誤操作リスクが高まるため不採用。
+
+## Bulk action semantics
+
+- Decision: バルクアーカイブは成功後に既定一覧から対象を除外し、タグ追加/削除は no-op を成功扱いとする冪等 API とする。
+- Rationale: repository 実装は `updateMany` と `createMany(skipDuplicates: true)`、`deleteMany` を使っており、spec で確定した挙動とも一致する。UI は成功後 `retryInitial()` で一覧を再読込すればよい。
+- Alternatives considered: 部分失敗の詳細返却や全体失敗。現状の利用価値に比べて UI 複雑性が増しすぎるため不採用。
+
+## Review start contract
+
+- Decision: カード一覧からの復習開始は `CardListFilter` をそのまま `/api/review/start` に渡し、選択済みカード ID は送らない。
+- Rationale: clarified spec で「現在の絞り込み結果で開始」が確定しており、`backend/src/api/review.ts` も `filter` を受けて `listCards()` から対象 ID を組み立てられる。
+- Alternatives considered: UI から明示的に `cardIds` を送る。選択状態と review 対象が混ざり、正確性の原則に反するため不採用。
+
+## Minimal option APIs
+
+- Decision: 共有モーダルの候補取得は `GET /api/tags` と `GET /api/collections` に分離し、返却は `FilterOption` の最小集合に限定する。
+- Rationale: `searchTagOptions()` と `searchCollectionOptions()` が既に `id` と `name` ベースの最小レスポンスを返しており、Privacy & Minimal Data 原則と一致する。
+- Alternatives considered: 一覧 API に候補全件を同梱する。初回ロードが重くなるため不採用。
+
+## Test coverage focus
+
+- Decision: テストは Vitest による API / コンポーネント回帰、Playwright による主要導線確認を継続し、今回の変更ではルーティング、選択クリア、バルク冪等性、レビュー開始対象を重点対象にする。
+- Rationale: `test.md` で branch / boundary / E2E の最低要件が明示されている。clarified spec によって分岐ポイントが増えたのは query 変更、ルート切り替え、バルク no-op 成功の 3 点である。
+- Alternatives considered: 手動確認のみ。既存挙動維持の制約に対して不十分なため不採用。

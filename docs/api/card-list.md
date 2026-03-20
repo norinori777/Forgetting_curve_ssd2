@@ -2,6 +2,12 @@
 
 Source of truth: `backend/contracts/openapi.yaml`
 
+## Routes
+
+- `GET /` はホームのプレースホルダーを返す SPA ルートです
+- `GET /cards` が実データに接続されたカード一覧ページです
+- `GET /review` / `GET /stats` / `GET /settings` は今回の範囲ではプレースホルダーです
+
 ## Endpoints
 
 ### GET /api/cards
@@ -30,6 +36,7 @@ Response (200):
 Notes:
 
 - `filter=today` は「当日終了時刻までに期限到来したカード（今日以前）」を対象とします。
+- `sort` / `q` / `tagIds` / `collectionIds` / `filter` のいずれかが変わると、クライアントは選択状態とカーソルをリセットして先頭から再取得します。
 
 ### GET /api/tags
 
@@ -66,6 +73,11 @@ Request:
 - `action`: `archive` / `delete` / `addTags` / `removeTags`
 - `tagIds`: タグ操作の場合のみ必須
 
+Notes:
+
+- `archive` 成功後、クライアントは再取得によって対象カードを既定一覧から即時に除外します。
+- `addTags` / `removeTags` は冪等です。すでに付いているタグの追加、未付与タグの削除は成功扱いの no-op です。
+
 ### POST /api/review/start
 
 現在の絞り込み条件（または明示的なID一覧）から復習セッションを開始します。
@@ -92,3 +104,7 @@ Response (200):
   "cardIds": ["..."]
 }
 ```
+
+Notes:
+
+- カード一覧ページからは常に現在の絞り込み条件を `filter` として送信し、選択状態は送信しません。
