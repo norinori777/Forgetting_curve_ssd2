@@ -18,10 +18,12 @@ type TagRow = { id: string; name: string };
 
 type CardTagRow = { cardId: string; tagId: string };
 
+type CollectionRow = { id: string; name: string; ownerId: string };
+
 type Store = {
   cards: CardRow[];
   tags: TagRow[];
-  collections: Array<{ id: string; name: string }>;
+  collections: CollectionRow[];
   cardTags: CardTagRow[];
 };
 
@@ -150,7 +152,57 @@ function matchWhere(card: CardRow, where: any): boolean {
 }
 
 function createFakePrisma(getStore: () => Store) {
+  const tx = {
+    collection: {
+      findUnique: async (args: any) => {
+        const s = getStore();
+        return s.collections.find((collection) => collection.id === args.where?.id) ?? null;
+      },
+    },
+    tag: {
+      upsert: async (args: any) => {
+        const s = getStore();
+        const existing = s.tags.find((t) => t.name === args.where.name);
+        if (existing) return existing;
+        const created = { id: `tag_${s.tags.length + 1}`, name: args.create.name };
+        s.tags.push(created);
+        return created;
+      },
+    },
+    cardTag: {
+      createMany: async (args: any) => {
+        const s = getStore();
+        for (const row of args.data as CardTagRow[]) {
+          const exists = s.cardTags.some((ct) => ct.cardId === row.cardId && ct.tagId === row.tagId);
+          if (!exists) s.cardTags.push(row);
+        }
+        return { count: args.data.length };
+      },
+    },
+    card: {
+      create: async (args: any) => {
+        const s = getStore();
+        const createdAt = new Date();
+        const created: CardRow = {
+          id: `card_${s.cards.length + 1}`,
+          title: args.data.title,
+          content: args.data.content,
+          collectionId: args.data.collectionId ?? null,
+          proficiency: args.data.proficiency,
+          nextReviewAt: args.data.nextReviewAt,
+          lastCorrectRate: args.data.lastCorrectRate,
+          isArchived: args.data.isArchived,
+          createdAt,
+          updatedAt: createdAt,
+        };
+        s.cards.push(created);
+        return created;
+      },
+    },
+  };
+
   return {
+    $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
     card: {
       findMany: async (args: any) => {
         const s = getStore();
@@ -642,5 +694,94 @@ describe('backend cards API', () => {
       .expect(400);
 
     expect(res.body.error).toBe('invalid_body');
+  });
+
+  it('creates a card and auto-creates missing tags', async () => {
+    process.env.NODE_ENV = 'test';
+
+    const collectionId = '11111111-1111-1111-1111-111111111111';
+    store.collections = [{ id: collectionId, name: 'TOEIC 600', ownerId: 'owner1' }];
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/cards')
+      .send({
+        title: '英単語セットA',
+        content: 'photosynthesis = 光合成',
+        tagNames: ['英語', '基礎'],
+        collectionId,
+      })
+      .expect(200);
+
+    expect(res.body.ok).toBe(true);
+    expect(res.body.card.title).toBe('英単語セットA');
+    expect(res.body.card.tags).toEqual(['英語', '基礎']);
+    expect(res.body.card.collectionId).toBe(collectionId);
+    expect(store.cards).toHaveLength(1);
+    expect(store.tags.map((tag) => tag.name)).toEqual(['英語', '基礎']);
+    expect(store.cardTags).toHaveLength(2);
+  });
+
+  it('rejects create requests with invalid body', async () => {
+    process.env.NODE_ENV = 'test';
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/cards')
+      .send({ title: '   ', content: '' })
+      .expect(400);
+
+    expect(res.body.error).toBe('invalid_body');
+    expect(res.body.details.fieldErrors.title).toBeTruthy();
+    expect(res.body.details.fieldErrors.content).toBeTruthy();
+  });
+
+  it('rejects create requests for unknown collections', async () => {
+    process.env.NODE_ENV = 'test';
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/cards')
+      .send({
+        title: '英単語セットA',
+        content: 'photosynthesis = 光合成',
+        tagNames: ['英語'],
+        collectionId: '22222222-2222-2222-2222-222222222222',
+      })
+      .expect(400);
+
+    expect(res.body.error).toBe('bad_request');
+    expect(res.body.message).toBe('collection_not_found');
+  });
+
+  it('emits structured create-card failure logs without PII', async () => {
+    process.env.NODE_ENV = 'development';
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { app } = await import('../../backend/src/index.ts');
+
+    await request(app)
+      .post('/api/cards')
+      .send({
+        title: '英単語セットA',
+        content: 'photosynthesis = 光合成',
+        tagNames: ['英語'],
+        collectionId: '33333333-3333-3333-3333-333333333333',
+      })
+      .expect(400);
+
+    const payloads = errorSpy.mock.calls.map(([message]) => String(message));
+
+    expect(payloads.length).toBeGreaterThan(0);
+    expect(payloads.some((payload) => JSON.parse(payload).scope === 'cardRepository')).toBe(true);
+    expect(payloads.some((payload) => JSON.parse(payload).scope === 'cardsApi')).toBe(true);
+    expect(payloads.every((payload) => !payload.includes('英単語セットA'))).toBe(true);
+    expect(payloads.every((payload) => !payload.includes('photosynthesis = 光合成'))).toBe(true);
+
+    errorSpy.mockRestore();
+    process.env.NODE_ENV = 'test';
   });
 });

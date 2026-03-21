@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import type { ApiCard, CardFilterKey, CardListFilter } from '../domain/cardList';
+import type { ApiCard, CardFilterKey, CardListFilter, CardListLocationState } from '../domain/cardList';
 import { bulkAction } from '../services/api/bulkApi';
 import { fetchCards } from '../services/api/cardListApi';
 import { startReview as startReviewRequest } from '../services/api/reviewApi';
@@ -18,6 +19,7 @@ import {
 } from '../components/uniqueParts/FilterSelectionModal';
 import { FilterSelector } from '../components/uniqueParts/FilterSelector';
 import { useSelection } from '../hooks/useSelection';
+import { cardCreateMessages } from '../domain/cardCreate';
 
 type ReviewStartResponse = {
   sessionId: string;
@@ -64,6 +66,8 @@ function resolveSort(value: string): SortKey {
 }
 
 export function CardList() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sort, setSort] = useState<SortKey>('next_review_at');
   const [q, setQ] = useState('');
@@ -90,8 +94,10 @@ export function CardList() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [bulkWorking, setBulkWorking] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const selection = useSelection(cards);
+  const locationState = location.state as CardListLocationState | null;
 
   const filterParam: CardFilterKey | undefined = statusFilter === 'all' ? undefined : statusFilter;
 
@@ -113,6 +119,17 @@ export function CardList() {
   useEffect(() => {
     selection.clear();
   }, [queryKey]);
+
+  useEffect(() => {
+    const flash = locationState?.flash;
+    if (!flash) return;
+
+    const nextMessage =
+      flash.messageKey === cardCreateMessages.successCreated.key ? cardCreateMessages.successCreated.text : flash.messageKey;
+
+    setSuccessMessage(nextMessage);
+    void navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, locationState?.flash, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -349,9 +366,14 @@ export function CardList() {
 
         <section aria-label="actions" className="flex flex-wrap items-center justify-between gap-4">
           <StartReviewButton disabled={cards.length === 0 || initialLoading} onClick={startReview} />
-          <button type="button" onClick={resetFilters} className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-primary">
-            条件をリセット
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={resetFilters} className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-primary">
+              条件をリセット
+            </button>
+            <Link to="/cards/create" className="rounded-full bg-brand-primary px-4 py-2 text-sm font-semibold text-white">
+              新規カード
+            </Link>
+          </div>
         </section>
 
         <SelectionBar
@@ -367,6 +389,14 @@ export function CardList() {
 
         {initialError ? <RetryBanner message={`Error: ${initialError}`} onRetry={retryInitial} /> : null}
         {moreError ? <RetryBanner message={`Error: ${moreError}`} onRetry={loadMore} /> : null}
+        {successMessage ? (
+          <div role="status" className="flex items-center justify-between gap-3 rounded-2xl bg-status-success/10 px-4 py-3 text-sm text-status-success">
+            <span>{successMessage}</span>
+            <button type="button" onClick={() => setSuccessMessage(null)} className="rounded-full border border-status-success px-3 py-1">
+              閉じる
+            </button>
+          </div>
+        ) : null}
 
         {reviewSession ? (
           <section aria-label="review-session" className="rounded-3xl border border-border-subtle bg-surface-panel p-5">
