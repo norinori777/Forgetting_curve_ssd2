@@ -1,4 +1,8 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import cors from 'cors';
+import dotenv from 'dotenv';
 import express from 'express';
 
 import { bulkRouter } from './api/bulk.js';
@@ -6,6 +10,13 @@ import { cardsRouter } from './api/cards.js';
 import { collectionsRouter } from './api/collections.js';
 import { reviewRouter } from './api/review.js';
 import { tagsRouter } from './api/tags.js';
+
+const moduleDir = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: resolve(moduleDir, '../../.env') });
+
+if (process.env.NODE_ENV !== 'test' && !process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is required. Create a root .env file or export DATABASE_URL before starting the backend.');
+}
 
 export const app = express();
 

@@ -9,6 +9,15 @@
 - PostgreSQL
 - `DATABASE_URL` が利用可能
 
+## 0. 環境変数を用意
+
+リポジトリルートに `.env` を作成し、少なくとも `DATABASE_URL` を設定します。backend は起動時にこの値を必須として扱います。
+
+```bash
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DBNAME?schema=public"
+PORT=3000
+```
+
 ## 1. 依存関係をインストール
 
 ```bash
