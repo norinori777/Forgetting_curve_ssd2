@@ -25,8 +25,16 @@ export const listCardsQuerySchema = z.object({
   sort: cardSortKeySchema,
 });
 
+export const createCardBodySchema = z.object({
+  title: z.string().trim().min(1),
+  content: z.string().trim().min(1),
+  tagNames: z.array(z.string().trim().min(1)).default([]),
+  collectionId: z.string().uuid().nullable().optional(),
+});
+
 export type CardSortKey = z.infer<typeof cardSortKeySchema>;
 export type ListCardsQuery = z.infer<typeof listCardsQuerySchema>;
+export type CreateCardBody = z.infer<typeof createCardBodySchema>;
 
 export type CursorPayload =
   | {

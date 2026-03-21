@@ -38,6 +38,42 @@ Notes:
 - `filter=today` は「当日終了時刻までに期限到来したカード（今日以前）」を対象とします。
 - `sort` / `q` / `tagIds` / `collectionIds` / `filter` のいずれかが変わると、クライアントは選択状態とカーソルをリセットして先頭から再取得します。
 
+### POST /api/cards
+
+学習カード登録画面から新規カードを作成します。
+
+Request:
+
+```json
+{
+  "title": "英単語セットA",
+  "content": "photosynthesis = 光合成",
+  "tagNames": ["英語", "基礎"],
+  "collectionId": "11111111-1111-1111-1111-111111111111"
+}
+```
+
+- `title` / `content`: 必須
+- `tagNames`: 任意、未登録タグは自動作成されます
+- `collectionId`: 任意、既存コレクションのみ指定可能です
+
+Response (200):
+
+```json
+{
+  "ok": true,
+  "card": {
+    "id": "...",
+    "title": "英単語セットA"
+  }
+}
+```
+
+Notes:
+
+- コレクション新規作成はこの endpoint の範囲外です。
+- 保存失敗時は入力内容を保持したままクライアント側で再試行できます。
+
 ### GET /api/tags
 
 共用フィルタモーダル用のタグ候補を取得します。

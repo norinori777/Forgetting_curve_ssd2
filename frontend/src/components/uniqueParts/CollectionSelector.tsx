@@ -1,9 +1,9 @@
 type Props = {
-  labels: string[];
+  label: string | null;
   onOpen: () => void;
 };
 
-export function CollectionSelector({ labels, onOpen }: Props) {
+export function CollectionSelector({ label, onOpen }: Props) {
   return (
     <div className="flex flex-col gap-2 text-sm">
       <span className="font-medium text-text-secondary">コレクション</span>
@@ -16,7 +16,7 @@ export function CollectionSelector({ labels, onOpen }: Props) {
         >
           コレクションを選択
         </button>
-        <span className="text-sm text-text-secondary">{labels.length > 0 ? labels.join(', ') : '未選択'}</span>
+        <span className="text-sm text-text-secondary">{label ?? '未選択'}</span>
       </div>
     </div>
   );

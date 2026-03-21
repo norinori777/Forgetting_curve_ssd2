@@ -12,6 +12,7 @@ function navLinkClassName(isActive: boolean): string {
 export function AppLayout() {
   const location = useLocation();
   const currentPage = resolveTopLevelPage(location.pathname);
+  const breadcrumbText = location.pathname === '/' ? 'ホーム' : `ホーム > ${currentPage.label}`;
 
   return (
     <div className="min-h-screen bg-surface-base text-text-primary">
@@ -24,7 +25,7 @@ export function AppLayout() {
             </div>
             <nav aria-label="トップレベルナビゲーション" className="flex flex-wrap gap-2">
               {topLevelPages.map((page) => (
-                <NavLink key={page.path} to={page.path} className={({ isActive }) => navLinkClassName(isActive)} end={page.path === '/'}>
+                <NavLink key={page.path} to={page.path} className={({ isActive }) => navLinkClassName(isActive)} end>
                   {page.label}
                 </NavLink>
               ))}
@@ -32,7 +33,7 @@ export function AppLayout() {
           </div>
 
           <div aria-label="パンくず" className="rounded-[20px] bg-surface-base px-4 py-3 text-sm text-text-secondary">
-            <span className="font-medium text-text-primary">{currentPage.label}</span>
+            <span className="font-medium text-text-primary">{breadcrumbText}</span>
           </div>
         </div>
       </header>

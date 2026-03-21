@@ -1,0 +1,132 @@
+openapi: 3.0.3
+info:
+  title: Study Card Create API Contract
+  version: '0.1.0'
+paths:
+  /api/cards:
+    post:
+      summary: Create a new study card
+      description: |
+        Creates a new study card from title, content, optional free-form tag names,
+        and an optional existing collection selection. Unknown tag names are created
+        before linking. Collection creation is out of scope for this endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCardRequest'
+      responses:
+        '200':
+          description: Card created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCardResponse'
+        '400':
+          description: Invalid request payload or unknown collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCardError'
+        '500':
+          description: Failed to persist card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCardError'
+components:
+  schemas:
+    CreateCardRequest:
+      type: object
+      required:
+        - title
+        - content
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Card title entered on the registration page
+        content:
+          type: string
+          minLength: 1
+          description: Learning content body entered on the registration page
+        tagNames:
+          type: array
+          description: Free-form tag names; missing tags are created automatically
+          items:
+            type: string
+            minLength: 1
+        collectionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Existing collection id selected from candidates
+    CreateCardResponse:
+      type: object
+      required:
+        - ok
+        - card
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        card:
+          $ref: '#/components/schemas/Card'
+    CreateCardError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          enum: [invalid_body, bad_request, database_error]
+        message:
+          type: string
+          nullable: true
+        details:
+          type: object
+          nullable: true
+    Card:
+      type: object
+      required:
+        - id
+        - title
+        - content
+        - tags
+        - collectionId
+        - proficiency
+        - nextReviewAt
+        - lastCorrectRate
+        - isArchived
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        collectionId:
+          type: string
+          nullable: true
+        proficiency:
+          type: integer
+        nextReviewAt:
+          type: string
+          format: date-time
+        lastCorrectRate:
+          type: number
+        isArchived:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

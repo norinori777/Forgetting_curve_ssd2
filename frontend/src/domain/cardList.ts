@@ -40,3 +40,12 @@ export type ReviewStartResponse = {
 };
 
 export type BulkAction = 'archive' | 'delete' | 'addTags' | 'removeTags';
+
+export type CardListSuccessFlash = {
+  messageKey: string;
+  createdCardId?: string;
+};
+
+export type CardListLocationState = {
+  flash?: CardListSuccessFlash;
+};

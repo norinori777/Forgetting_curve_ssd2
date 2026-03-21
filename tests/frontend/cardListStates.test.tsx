@@ -14,6 +14,14 @@ class IntersectionObserverMock {
 }
 
 describe('CardList states', () => {
+  function renderCardList() {
+    return render(
+      <MemoryRouter>
+        <CardList />
+      </MemoryRouter>,
+    );
+  }
+
   beforeEach(() => {
     vi.stubGlobal('IntersectionObserver', IntersectionObserverMock);
   });
@@ -36,7 +44,7 @@ describe('CardList states', () => {
       }),
     );
 
-    render(<CardList />);
+    renderCardList();
 
     expect(await screen.findByText('条件に一致するカードがありません。')).toBeInTheDocument();
     const [cardList] = screen.getAllByRole('region', { name: 'card-list' });
@@ -49,7 +57,7 @@ describe('CardList states', () => {
       vi.fn(async () => new Response('error', { status: 500 })),
     );
 
-    render(<CardList />);
+    renderCardList();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Error: HTTP 500');
   });
@@ -73,7 +81,7 @@ describe('CardList states', () => {
       }),
     );
 
-    render(<CardList />);
+    renderCardList();
 
     const [filterSection] = screen.getAllByRole('region', { name: 'filters' });
     const openTagButton = await within(filterSection).findByRole('button', { name: 'タグ/コレクションを選択' });
@@ -116,6 +124,41 @@ describe('CardList states', () => {
     expect(screen.getByLabelText('パンくず')).toHaveTextContent('カード一覧');
   });
 
+  it('navigates to create page from header and cards list CTA', async () => {
+    const user = userEvent.setup();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/api/cards')) {
+          return new Response(JSON.stringify({ items: [], nextCursor: undefined }), { status: 200 });
+        }
+        if (url.includes('/api/collections')) {
+          return new Response(JSON.stringify({ items: [{ id: 'col1', label: 'TOEIC 600' }] }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      }),
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/cards']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'カード一覧' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: '学習カード登録' }));
+    expect(await screen.findByRole('heading', { name: '学習カード登録' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '一覧へ戻る' }));
+    expect(await screen.findByRole('heading', { name: 'カード一覧' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: '新規カード' }));
+    expect(await screen.findByRole('heading', { name: '学習カード登録' })).toBeInTheDocument();
+  });
+
   it('supports keyboard focus to search and clears selection when filters change', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
@@ -149,7 +192,7 @@ describe('CardList states', () => {
       }),
     );
 
-    render(<CardList />);
+    renderCardList();
 
     await screen.findByRole('heading', { name: 'Card 1' });
 

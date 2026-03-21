@@ -3,15 +3,8 @@ dist/
 build/
 coverage/
 storybook-static/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
 test-results/
 playwright-report/
-node_modules/
-dist/
-build/
-coverage/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
