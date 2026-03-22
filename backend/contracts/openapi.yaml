@@ -113,6 +113,37 @@ paths:
                     description: opaque cursor to fetch next page
         '400':
           description: Invalid query or cursor/sort mismatch
+    post:
+      summary: Create a new study card
+      description: |
+        Creates a new study card from title, content, optional free-form tag names,
+        and an optional existing collection selection. Unknown tag names are created
+        before linking. Collection creation is out of scope for this endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCardRequest'
+      responses:
+        '200':
+          description: Card created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCardResponse'
+        '400':
+          description: Invalid request payload or unknown collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCardError'
+        '500':
+          description: Failed to persist card
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCardError'
   /api/cards/bulk:
     post:
       summary: Execute a bulk action on selected cards
@@ -197,6 +228,7 @@ components:
             type: string
         collectionId:
           type: string
+          format: uuid
           nullable: true
         proficiency:
           type: number
@@ -246,3 +278,48 @@ components:
           type: array
           items:
             type: string
+    CreateCardRequest:
+      type: object
+      required:
+        - title
+        - content
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+        tagNames:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        collectionId:
+          type: string
+          nullable: true
+    CreateCardResponse:
+      type: object
+      required:
+        - ok
+        - card
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        card:
+          $ref: '#/components/schemas/Card'
+    CreateCardError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          enum: [invalid_body, bad_request, database_error]
+        message:
+          type: string
+          nullable: true
+        details:
+          type: object
+          nullable: true

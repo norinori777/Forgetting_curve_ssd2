@@ -2,7 +2,7 @@ import type { Prisma } from '@prisma/client';
 
 import { prisma } from '../db/prisma.js';
 import type { FilterOption } from '../domain/cardList.js';
-import type { CardSortKey, CursorPayload, ListCardsQuery } from '../schemas/cards.js';
+import type { CardSortKey, CreateCardBody, CursorPayload, ListCardsQuery } from '../schemas/cards.js';
 import { decodeCursor, encodeCursor } from '../schemas/cards.js';
 import { buildCardBaseFilters } from '../services/searchService.js';
 
@@ -28,6 +28,32 @@ type CardWithTags = Prisma.CardGetPayload<{
     };
   };
 }>;
+
+export class CreateCardRepositoryError extends Error {
+  constructor(
+    public readonly code: 'COLLECTION_NOT_FOUND' | 'DATABASE_ERROR',
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+function logRepositoryEvent(level: 'info' | 'error', event: string, metadata: Record<string, unknown>): void {
+  if (process.env.NODE_ENV === 'test') return;
+
+  const payload = JSON.stringify({
+    scope: 'cardRepository',
+    event,
+    ...metadata,
+  });
+
+  if (level === 'error') {
+    console.error(payload);
+    return;
+  }
+
+  console.info(payload);
+}
 
 function buildCursorWhere(sort: CardSortKey, cursor: CursorPayload): Prisma.CardWhereInput {
   if (cursor.sort !== sort) {
@@ -215,4 +241,98 @@ export async function searchCollectionOptions(q?: string, limit = 20): Promise<F
   });
 
   return collections.map((collection) => ({ id: collection.id, label: collection.name, matchedBy: 'name' }));
+}
+
+export async function createCard(input: CreateCardBody): Promise<ApiCard> {
+  const normalizedTagNames = Array.from(new Set((input.tagNames ?? []).map((tagName) => tagName.trim()).filter(Boolean)));
+  const now = new Date();
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      if (input.collectionId) {
+        const collection = await tx.collection.findUnique({
+          where: { id: input.collectionId },
+          select: { id: true, name: true },
+        });
+
+        if (!collection) {
+          throw new CreateCardRepositoryError('COLLECTION_NOT_FOUND', 'collection_not_found');
+        }
+      }
+
+      const createdCard = await tx.card.create({
+        data: {
+          title: input.title.trim(),
+          content: input.content.trim(),
+          answer: input.answer ?? null,
+          collectionId: input.collectionId ?? null,
+          proficiency: 0,
+          nextReviewAt: now,
+          lastCorrectRate: 0,
+          isArchived: false,
+        },
+      });
+
+      const tagRows = [] as Array<{ id: string; name: string }>;
+      for (const tagName of normalizedTagNames) {
+        const tag = await tx.tag.upsert({
+          where: { name: tagName },
+          update: {},
+          create: { name: tagName },
+          select: { id: true, name: true },
+        });
+        tagRows.push(tag);
+      }
+
+      if (tagRows.length > 0) {
+        await tx.cardTag.createMany({
+          data: tagRows.map((tag) => ({ cardId: createdCard.id, tagId: tag.id })),
+          skipDuplicates: true,
+        });
+      }
+
+      logRepositoryEvent('info', 'create-card-succeeded', {
+        cardId: createdCard.id,
+        tagCount: tagRows.length,
+        hasAnswer: createdCard.answer !== null,
+        hasCollection: Boolean(input.collectionId),
+      });
+
+      return {
+        id: createdCard.id,
+        title: createdCard.title,
+        content: createdCard.content,
+        answer: createdCard.answer,
+        tags: tagRows.map((tag) => tag.name),
+        collectionId: createdCard.collectionId,
+        proficiency: createdCard.proficiency,
+        nextReviewAt: createdCard.nextReviewAt.toISOString(),
+        lastCorrectRate: createdCard.lastCorrectRate,
+        isArchived: createdCard.isArchived,
+        createdAt: createdCard.createdAt.toISOString(),
+        updatedAt: createdCard.updatedAt.toISOString(),
+      } satisfies ApiCard;
+    });
+
+    return result;
+  } catch (error) {
+    if (error instanceof CreateCardRepositoryError) {
+      logRepositoryEvent('error', 'create-card-rejected', {
+        code: error.code,
+        hasAnswer: input.answer !== null && input.answer !== undefined,
+        hasCollection: Boolean(input.collectionId),
+        tagCount: normalizedTagNames.length,
+      });
+      throw error;
+    }
+
+    logRepositoryEvent('error', 'create-card-failed', {
+      code: 'DATABASE_ERROR',
+      hasAnswer: input.answer !== null && input.answer !== undefined,
+      hasCollection: Boolean(input.collectionId),
+      tagCount: normalizedTagNames.length,
+      message: error instanceof Error ? error.message : 'unknown error',
+    });
+    throw new CreateCardRepositoryError('DATABASE_ERROR', 'failed_to_persist_card');
+  }
 }

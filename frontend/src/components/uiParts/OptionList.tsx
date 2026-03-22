@@ -5,9 +5,10 @@ type Props = {
   options: FilterOption[];
   selectedIds: string[];
   onToggle: (id: string) => void;
+  selectionMode?: 'multiple' | 'single';
 };
 
-export function OptionList({ ariaLabel, options, selectedIds, onToggle }: Props) {
+export function OptionList({ ariaLabel, options, selectedIds, onToggle, selectionMode = 'multiple' }: Props) {
   if (options.length === 0) {
     return <p className="text-sm text-text-muted">候補がありません。</p>;
   }
@@ -21,7 +22,7 @@ export function OptionList({ ariaLabel, options, selectedIds, onToggle }: Props)
           <li key={option.id}>
             <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-border-subtle px-4 py-3 text-sm text-text-primary">
               <span>{option.label}</span>
-              <input type="checkbox" checked={checked} onChange={() => onToggle(option.id)} />
+              <input type={selectionMode === 'single' ? 'radio' : 'checkbox'} checked={checked} onChange={() => onToggle(option.id)} />
             </label>
           </li>
         );
