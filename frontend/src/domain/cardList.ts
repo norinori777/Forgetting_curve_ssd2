@@ -1,10 +1,12 @@
 export type CardSortKey = 'next_review_at' | 'proficiency' | 'created_at';
 export type CardFilterKey = 'today' | 'overdue' | 'unlearned';
+export type AnswerDisplayMode = 'link' | 'inline';
 
 export type ApiCard = {
   id: string;
   title: string;
   content: string;
+  answer: string | null;
   tags: string[];
   collectionId: string | null;
   proficiency: number;

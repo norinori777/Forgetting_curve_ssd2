@@ -5,13 +5,15 @@ type Props = {
   selected?: boolean;
   onToggleSelected?: () => void;
   onStartReview?: () => void;
+  answerVisible?: boolean;
+  onShowAnswer?: () => void;
 };
 
 function formatCorrectRate(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-export function CardItem({ card, selected = false, onToggleSelected, onStartReview }: Props) {
+export function CardItem({ card, selected = false, onToggleSelected, onStartReview, answerVisible = false, onShowAnswer }: Props) {
   const nextReviewAtLabel = new Date(card.nextReviewAt).toLocaleString();
   const proficiencyLabel = `${Math.max(card.proficiency, 0)}`;
 
@@ -43,6 +45,36 @@ export function CardItem({ card, selected = false, onToggleSelected, onStartRevi
               ) : null}
             </div>
             <p className="mt-2 text-sm leading-6 text-text-secondary">{card.content}</p>
+
+            <div className="rounded-2xl bg-surface-base px-4 py-3">
+              <dt className="text-xs uppercase tracking-[0.12em] text-text-muted">回答</dt>
+              {card.answer ? (
+                answerVisible ? (
+                  <dd
+                    className="mt-2 overflow-hidden whitespace-pre-wrap text-sm leading-6 text-text-primary"
+                    style={{
+                      display: '-webkit-box',
+                      WebkitBoxOrient: 'vertical',
+                      WebkitLineClamp: 3,
+                    }}
+                  >
+                    {card.answer}
+                  </dd>
+                ) : (
+                  <dd className="mt-2">
+                    <button
+                      type="button"
+                      onClick={onShowAnswer}
+                      className="text-sm font-medium text-brand-primary underline-offset-2 transition hover:underline"
+                    >
+                      回答を表示
+                    </button>
+                  </dd>
+                )
+              ) : (
+                <dd className="mt-2 text-sm leading-6 text-text-muted">未登録</dd>
+              )}
+            </div>
           </div>
 
           {card.tags.length > 0 ? (

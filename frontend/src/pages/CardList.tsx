@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import type { ApiCard, CardFilterKey, CardListFilter, CardListLocationState } from '../domain/cardList';
+import type { AnswerDisplayMode, ApiCard, CardFilterKey, CardListFilter, CardListLocationState } from '../domain/cardList';
 import { bulkAction } from '../services/api/bulkApi';
 import { fetchCards } from '../services/api/cardListApi';
+import { getAnswerDisplayMode } from '../services/answerDisplayPreference';
 import { startReview as startReviewRequest } from '../services/api/reviewApi';
 import { AsyncState } from '../components/uiParts/AsyncState';
 import { RetryBanner } from '../components/uiParts/RetryBanner';
@@ -90,6 +91,8 @@ export function CardList() {
   const [moreError, setMoreError] = useState<string | null>(null);
 
   const [reviewSession, setReviewSession] = useState<ReviewStartResponse | null>(null);
+  const [, setAnswerDisplayMode] = useState<AnswerDisplayMode>(() => getAnswerDisplayMode());
+  const [visibleAnswerIds, setVisibleAnswerIds] = useState<Set<string>>(new Set());
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -116,6 +119,11 @@ export function CardList() {
     return JSON.stringify(listFilter);
   }, [listFilter]);
 
+  function buildVisibleAnswerIds(items: ApiCard[], mode: AnswerDisplayMode): Set<string> {
+    if (mode !== 'inline') return new Set();
+    return new Set(items.filter((card) => !!card.answer).map((card) => card.id));
+  }
+
   useEffect(() => {
     selection.clear();
   }, [queryKey]);
@@ -141,10 +149,13 @@ export function CardList() {
       setReviewSession(null);
 
       try {
+        const nextMode = getAnswerDisplayMode();
         const data = await fetchCards(listFilter);
         if (cancelled) return;
+        setAnswerDisplayMode(nextMode);
         setCards(data.items ?? []);
         setNextCursor(data.nextCursor);
+        setVisibleAnswerIds(buildVisibleAnswerIds(data.items ?? [], nextMode));
       } catch (e: unknown) {
         if (cancelled) return;
         setInitialError(getErrorMessage(e, 'failed to load'));
@@ -167,9 +178,20 @@ export function CardList() {
     setMoreError(null);
 
     try {
+      const nextMode = getAnswerDisplayMode();
       const data = await fetchCards(listFilter, nextCursor);
+      setAnswerDisplayMode(nextMode);
       setCards((prev) => [...prev, ...(data.items ?? [])]);
       setNextCursor(data.nextCursor);
+      if (nextMode === 'inline') {
+        setVisibleAnswerIds((prev) => {
+          const next = new Set(prev);
+          for (const card of data.items ?? []) {
+            if (card.answer) next.add(card.id);
+          }
+          return next;
+        });
+      }
     } catch (e: unknown) {
       setMoreError(getErrorMessage(e, 'failed to load more'));
     } finally {
@@ -204,9 +226,12 @@ export function CardList() {
     setInitialError(null);
 
     try {
+      const nextMode = getAnswerDisplayMode();
       const data = await fetchCards(listFilter);
+      setAnswerDisplayMode(nextMode);
       setCards(data.items ?? []);
       setNextCursor(data.nextCursor);
+      setVisibleAnswerIds(buildVisibleAnswerIds(data.items ?? [], nextMode));
     } catch (e: unknown) {
       setInitialError(getErrorMessage(e, 'failed to load'));
     } finally {
@@ -284,6 +309,14 @@ export function CardList() {
     setCollectionIds([]);
     setTagLabels([]);
     setCollectionLabels([]);
+  }
+
+  function showAnswer(cardId: string) {
+    setVisibleAnswerIds((prev) => {
+      const next = new Set(prev);
+      next.add(cardId);
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -451,6 +484,8 @@ export function CardList() {
                   key={card.id}
                   card={card}
                   selected={selection.isSelected(card.id)}
+                  answerVisible={visibleAnswerIds.has(card.id)}
+                  onShowAnswer={() => showAnswer(card.id)}
                   onToggleSelected={() => selection.toggle(card.id)}
                   onStartReview={() => void startReview()}
                 />

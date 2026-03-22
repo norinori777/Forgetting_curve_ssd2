@@ -57,7 +57,7 @@ paths:
                       $ref: '#/components/schemas/FilterOption'
   /api/cards:
     get:
-      summary: List non-archived cards with cursor pagination and filter state
+      summary: List non-archived cards with cursor pagination, filter state, and optional answer text
       parameters:
         - in: query
           name: cursor
@@ -73,7 +73,7 @@ paths:
           name: q
           schema:
             type: string
-          description: Full-text search query for title/content/tag related matches
+          description: Full-text search query for title/content/answer/tag related matches
         - in: query
           name: tagIds
           schema:
@@ -218,6 +218,10 @@ components:
           type: string
         content:
           type: string
+        answer:
+          type: string
+          nullable: true
+          description: Optional multiline plain-text answer associated with the card
         tags:
           type: array
           items:
