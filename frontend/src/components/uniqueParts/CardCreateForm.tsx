@@ -3,6 +3,7 @@ import { CollectionSelector } from './CollectionSelector';
 type Props = {
   title: string;
   content: string;
+  answer: string;
   tagInput: string;
   collectionLabel: string | null;
   titleError?: string;
@@ -13,6 +14,7 @@ type Props = {
   submitState: 'idle' | 'submitting' | 'failed';
   onTitleChange: (value: string) => void;
   onContentChange: (value: string) => void;
+  onAnswerChange: (value: string) => void;
   onTagInputChange: (value: string) => void;
   onOpenCollectionPicker: () => void;
   onSubmit: () => void;
@@ -23,6 +25,7 @@ type Props = {
 export function CardCreateForm({
   title,
   content,
+  answer,
   tagInput,
   collectionLabel,
   titleError,
@@ -33,6 +36,7 @@ export function CardCreateForm({
   submitState,
   onTitleChange,
   onContentChange,
+  onAnswerChange,
   onTagInputChange,
   onOpenCollectionPicker,
   onSubmit,
@@ -77,6 +81,16 @@ export function CardCreateForm({
           placeholder={'例:\nphotosynthesis = 光合成\nsunlight, water, carbon dioxide を使って栄養をつくる'}
         />
         {contentError ? <span role="alert" className="text-sm text-status-danger">{contentError}</span> : null}
+      </label>
+
+      <label className="flex flex-col gap-2 text-sm font-medium text-text-secondary">
+        回答
+        <textarea
+          className="min-h-32 rounded-2xl border border-border-subtle bg-surface-base px-4 py-3 text-sm text-text-primary outline-none transition focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20"
+          value={answer}
+          onChange={(event) => onAnswerChange(event.currentTarget.value)}
+          placeholder={'例:\n植物が光エネルギーを使って糖を合成するはたらき\n葉緑体で行われる'}
+        />
       </label>
 
       <label className="flex flex-col gap-2 text-sm font-medium text-text-secondary">

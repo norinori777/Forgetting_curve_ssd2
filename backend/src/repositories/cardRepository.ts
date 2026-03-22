@@ -10,6 +10,7 @@ export type ApiCard = {
   id: string;
   title: string;
   content: string;
+  answer: string | null;
   tags: string[];
   collectionId: string | null;
   proficiency: number;
@@ -92,6 +93,7 @@ function toApiCard(card: CardWithTags): ApiCard {
     id: card.id,
     title: card.title,
     content: card.content,
+    answer: card.answer ?? null,
     tags: (card.tags ?? []).map((ct) => ct.tag?.name).filter((t): t is string => typeof t === 'string'),
     collectionId: card.collectionId,
     proficiency: card.proficiency,
@@ -262,6 +264,7 @@ export async function createCard(input: CreateCardBody): Promise<ApiCard> {
         data: {
           title: input.title.trim(),
           content: input.content.trim(),
+          answer: input.answer ?? null,
           collectionId: input.collectionId ?? null,
           proficiency: 0,
           nextReviewAt: now,
@@ -291,6 +294,7 @@ export async function createCard(input: CreateCardBody): Promise<ApiCard> {
       logRepositoryEvent('info', 'create-card-succeeded', {
         cardId: createdCard.id,
         tagCount: tagRows.length,
+        hasAnswer: createdCard.answer !== null,
         hasCollection: Boolean(input.collectionId),
       });
 
@@ -298,6 +302,7 @@ export async function createCard(input: CreateCardBody): Promise<ApiCard> {
         id: createdCard.id,
         title: createdCard.title,
         content: createdCard.content,
+        answer: createdCard.answer,
         tags: tagRows.map((tag) => tag.name),
         collectionId: createdCard.collectionId,
         proficiency: createdCard.proficiency,
@@ -314,6 +319,7 @@ export async function createCard(input: CreateCardBody): Promise<ApiCard> {
     if (error instanceof CreateCardRepositoryError) {
       logRepositoryEvent('error', 'create-card-rejected', {
         code: error.code,
+        hasAnswer: input.answer !== null && input.answer !== undefined,
         hasCollection: Boolean(input.collectionId),
         tagCount: normalizedTagNames.length,
       });
@@ -322,6 +328,7 @@ export async function createCard(input: CreateCardBody): Promise<ApiCard> {
 
     logRepositoryEvent('error', 'create-card-failed', {
       code: 'DATABASE_ERROR',
+      hasAnswer: input.answer !== null && input.answer !== undefined,
       hasCollection: Boolean(input.collectionId),
       tagCount: normalizedTagNames.length,
       message: error instanceof Error ? error.message : 'unknown error',

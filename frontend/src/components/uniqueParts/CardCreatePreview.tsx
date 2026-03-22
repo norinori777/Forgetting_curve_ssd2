@@ -1,11 +1,12 @@
 type Props = {
   title: string;
   content: string;
+  answer: string;
   tagNames: string[];
   collectionLabel: string | null;
 };
 
-export function CardCreatePreview({ title, content, tagNames, collectionLabel }: Props) {
+export function CardCreatePreview({ title, content, answer, tagNames, collectionLabel }: Props) {
   return (
     <section aria-label="入力プレビュー" className="rounded-[28px] border border-border-subtle bg-surface-panel p-5">
       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-text-muted">Preview</p>
@@ -26,6 +27,10 @@ export function CardCreatePreview({ title, content, tagNames, collectionLabel }:
         <div className="grid gap-1 md:grid-cols-[140px,1fr]">
           <dt className="font-medium text-text-primary">学習内容</dt>
           <dd className="whitespace-pre-wrap break-words">{content.trim().length > 0 ? content : '未入力'}</dd>
+        </div>
+        <div className="grid gap-1 md:grid-cols-[140px,1fr]">
+          <dt className="font-medium text-text-primary">回答</dt>
+          <dd className="whitespace-pre-wrap break-words">{answer.trim().length > 0 ? answer : '未登録'}</dd>
         </div>
       </dl>
     </section>

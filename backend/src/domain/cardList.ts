@@ -5,6 +5,7 @@ export type ApiCard = {
   id: string;
   title: string;
   content: string;
+  answer: string | null;
   tags: string[];
   collectionId: string | null;
   proficiency: number;
