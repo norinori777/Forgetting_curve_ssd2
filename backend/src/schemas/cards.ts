@@ -11,6 +11,13 @@ function csvToArray(value: unknown): string[] | undefined {
   return items.length > 0 ? items : undefined;
 }
 
+function normalizeOptionalAnswer(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string') return value as never;
+  return value.trim().length === 0 ? null : value;
+}
+
 export const cardSortKeySchema = z
   .enum(['next_review_at', 'proficiency', 'created_at'])
   .default('next_review_at');
@@ -28,6 +35,7 @@ export const listCardsQuerySchema = z.object({
 export const createCardBodySchema = z.object({
   title: z.string().trim().min(1),
   content: z.string().trim().min(1),
+  answer: z.preprocess(normalizeOptionalAnswer, z.string().nullable().optional()),
   tagNames: z.array(z.string().trim().min(1)).default([]),
   collectionId: z.string().uuid().nullable().optional(),
 });

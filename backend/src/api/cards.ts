@@ -44,6 +44,7 @@ cardsRouter.post('/', async (req, res) => {
   }
 
   logApiEvent('info', 'create-card-requested', {
+    hasAnswer: parsed.data.answer !== null && parsed.data.answer !== undefined,
     hasCollection: Boolean(parsed.data.collectionId),
     tagCount: parsed.data.tagNames.length,
   });
@@ -52,6 +53,7 @@ cardsRouter.post('/', async (req, res) => {
     const card = await createCard(parsed.data);
     logApiEvent('info', 'create-card-succeeded', {
       cardId: card.id,
+      hasAnswer: card.answer !== null,
       hasCollection: Boolean(card.collectionId),
       tagCount: card.tags.length,
     });
@@ -60,6 +62,7 @@ cardsRouter.post('/', async (req, res) => {
     if (error instanceof CreateCardRepositoryError && error.code === 'COLLECTION_NOT_FOUND') {
       logApiEvent('error', 'create-card-bad-request', {
         code: error.code,
+        hasAnswer: parsed.data.answer !== null && parsed.data.answer !== undefined,
         hasCollection: Boolean(parsed.data.collectionId),
         tagCount: parsed.data.tagNames.length,
       });
@@ -68,6 +71,7 @@ cardsRouter.post('/', async (req, res) => {
 
     logApiEvent('error', 'create-card-failed', {
       code: error instanceof CreateCardRepositoryError ? error.code : 'DATABASE_ERROR',
+      hasAnswer: parsed.data.answer !== null && parsed.data.answer !== undefined,
       hasCollection: Boolean(parsed.data.collectionId),
       tagCount: parsed.data.tagNames.length,
     });

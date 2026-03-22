@@ -133,7 +133,7 @@ export function CardCreate() {
           学習カード登録
         </h1>
         <p className="max-w-3xl text-sm leading-6 text-text-secondary">
-          新しい学習カードを作成し、タイトル、学習内容、タグ、コレクションを登録できます。
+          新しい学習カードを作成し、タイトル、学習内容、回答、タグ、コレクションを登録できます。
         </p>
       </header>
 
@@ -141,6 +141,7 @@ export function CardCreate() {
         <CardCreateForm
           title={draft.title}
           content={draft.content}
+          answer={draft.answer}
           tagInput={draft.tagInput}
           collectionLabel={draft.collectionLabel}
           titleError={draft.fieldErrors.title}
@@ -151,6 +152,7 @@ export function CardCreate() {
           submitState={draft.submitState}
           onTitleChange={(value) => patchDraft({ title: value, fieldErrors: { ...draft.fieldErrors, title: undefined } })}
           onContentChange={(value) => patchDraft({ content: value, fieldErrors: { ...draft.fieldErrors, content: undefined } })}
+          onAnswerChange={(value) => patchDraft({ answer: value })}
           onTagInputChange={(value) => patchDraft({ tagInput: value })}
           onOpenCollectionPicker={() => setCollectionModalOpen(true)}
           onSubmit={() => void submitCard()}
@@ -161,6 +163,7 @@ export function CardCreate() {
         <CardCreatePreview
           title={draft.title}
           content={draft.content}
+          answer={draft.answer}
           tagNames={tagNames}
           collectionLabel={draft.collectionLabel}
         />
