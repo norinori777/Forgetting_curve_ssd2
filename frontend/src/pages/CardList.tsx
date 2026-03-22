@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import type { AnswerDisplayMode, ApiCard, CardFilterKey, CardListFilter, CardListLocationState } from '../domain/cardList';
+import type { ReviewStartResponse } from '../domain/review';
 import { bulkAction } from '../services/api/bulkApi';
 import { fetchCards } from '../services/api/cardListApi';
 import { getAnswerDisplayMode } from '../services/answerDisplayPreference';
-import { startReview as startReviewRequest } from '../services/api/reviewApi';
+import { ReviewApiError, startReview as startReviewRequest } from '../services/api/reviewApi';
 import { AsyncState } from '../components/uiParts/AsyncState';
 import { RetryBanner } from '../components/uiParts/RetryBanner';
 import { SearchBar } from '../components/uiParts/SearchBar';
@@ -21,11 +22,8 @@ import {
 import { FilterSelector } from '../components/uniqueParts/FilterSelector';
 import { useSelection } from '../hooks/useSelection';
 import { cardCreateMessages } from '../domain/cardCreate';
-
-type ReviewStartResponse = {
-  sessionId: string;
-  cardIds: string[];
-};
+import { buildReviewSessionPath } from '../utils/routes/reviewSession';
+import { cacheReviewSessionSnapshot, clearPendingReviewStartFilter, setActiveReviewSessionId, setPendingReviewStartFilter } from '../utils/reviewSessionStorage';
 
 type StatusFilter = 'all' | CardFilterKey;
 type SortKey = 'next_review_at' | 'proficiency' | 'created_at';
@@ -90,7 +88,6 @@ export function CardList() {
   const [initialError, setInitialError] = useState<string | null>(null);
   const [moreError, setMoreError] = useState<string | null>(null);
 
-  const [reviewSession, setReviewSession] = useState<ReviewStartResponse | null>(null);
   const [, setAnswerDisplayMode] = useState<AnswerDisplayMode>(() => getAnswerDisplayMode());
   const [visibleAnswerIds, setVisibleAnswerIds] = useState<Set<string>>(new Set());
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -146,7 +143,6 @@ export function CardList() {
       setInitialLoading(true);
       setInitialError(null);
       setMoreError(null);
-      setReviewSession(null);
 
       try {
         const nextMode = getAnswerDisplayMode();
@@ -241,11 +237,25 @@ export function CardList() {
 
   async function startReview() {
     setMoreError(null);
+    setPendingReviewStartFilter(listFilter);
 
     try {
       const data = (await startReviewRequest(listFilter)) as ReviewStartResponse;
-      setReviewSession(data);
+      clearPendingReviewStartFilter();
+      setActiveReviewSessionId(data.snapshot.sessionId);
+      cacheReviewSessionSnapshot(data.snapshot);
+      void navigate(buildReviewSessionPath({ sessionId: data.snapshot.sessionId }));
     } catch (e: unknown) {
+      if (e instanceof ReviewApiError) {
+        if (e.status === 404) {
+          void navigate(buildReviewSessionPath({ state: 'empty' }));
+          return;
+        }
+
+        void navigate(buildReviewSessionPath({ state: 'start-error' }));
+        return;
+      }
+
       setMoreError(getErrorMessage(e, 'failed to start review'));
     }
   }
@@ -430,18 +440,6 @@ export function CardList() {
             </button>
           </div>
         ) : null}
-
-        {reviewSession ? (
-          <section aria-label="review-session" className="rounded-3xl border border-border-subtle bg-surface-panel p-5">
-            <p>
-              sessionId: <span data-testid="session-id">{reviewSession.sessionId}</span>
-            </p>
-            <p>
-              cards: <span data-testid="session-count">{reviewSession.cardIds.length}</span>
-            </p>
-          </section>
-        ) : null}
-
         <section aria-label="card-list" className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-border-subtle bg-surface-panel px-5 py-4">
             <div>

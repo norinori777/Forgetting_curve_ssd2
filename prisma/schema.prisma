@@ -22,6 +22,7 @@ model Card {
   updatedAt       DateTime    @updatedAt @map("updated_at")
 
   tags            CardTag[]
+  reviewSessions  ReviewSessionCard[]
 
   @@index([nextReviewAt, id])
   @@index([collectionId])
@@ -64,4 +65,41 @@ model CardTag {
   @@index([cardId])
   @@index([tagId])
   @@map("card_tags")
+}
+
+model ReviewSession {
+  id                     String              @id @default(uuid()) @db.Uuid
+  status                 String
+  currentCardIndex       Int                 @default(0) @map("current_card_index")
+  totalCards             Int                 @map("total_cards")
+  sourceQuery            String?             @map("source_query")
+  sourceFilter           String?             @map("source_filter")
+  sourceSort             String              @map("source_sort")
+  sourceTagLabels        String[]            @default([]) @map("source_tag_labels")
+  sourceCollectionLabels String[]            @default([]) @map("source_collection_labels")
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
+  completedAt            DateTime?           @map("completed_at")
+
+  cards                  ReviewSessionCard[]
+
+  @@index([status, updatedAt])
+  @@map("review_sessions")
+}
+
+model ReviewSessionCard {
+  sessionId   String        @db.Uuid @map("session_id")
+  cardId      String        @db.Uuid @map("card_id")
+  orderIndex  Int           @map("order_index")
+  assessment  String?
+  assessedAt  DateTime?     @map("assessed_at")
+  lockedAt    DateTime?     @map("locked_at")
+
+  session     ReviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  card        Card          @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, cardId])
+  @@unique([sessionId, orderIndex])
+  @@index([sessionId, lockedAt])
+  @@map("review_session_cards")
 }

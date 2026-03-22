@@ -59,15 +59,84 @@ test('US1: 今日の復習 → 復習開始', async ({ page }) => {
   });
 
   await page.route('**/api/review/start', async (route) => {
-    const body = route.request().postDataJSON() as any;
+    const body = route.request().postDataJSON() as { filter?: { filter?: string } };
 
     const today = body?.filter?.filter === 'today';
-    const cardIds = today ? ['t1', 't2'] : ['n1'];
+    const snapshot = {
+      sessionId: 's1',
+      status: 'in_progress',
+      currentIndex: 0,
+      totalCount: today ? 2 : 1,
+      remainingCount: today ? 2 : 1,
+      canGoPrev: false,
+      canGoNext: false,
+      filterSummary: {
+        q: null,
+        filter: today ? 'today' : null,
+        sort: 'next_review_at',
+        tagLabels: [],
+        collectionLabels: [],
+      },
+      currentCard: {
+        cardId: today ? 't1' : 'n1',
+        title: today ? 'Today 1' : 'Normal 1',
+        content: 'due today',
+        answer: 'answer',
+        tags: [],
+        collectionLabel: null,
+        nextReviewAt: '2026-03-07T00:00:00.000Z',
+        reviewReason: {
+          label: '今日の復習対象に含まれています',
+          detail: '2026-03-07T00:00:00.000Z',
+          source: 'next_review_at',
+        },
+        currentAssessment: null,
+        locked: false,
+      },
+      summary: {
+        forgotCount: 0,
+        uncertainCount: 0,
+        rememberedCount: 0,
+        perfectCount: 0,
+        assessedCount: 0,
+        totalCount: today ? 2 : 1,
+      },
+    };
 
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ sessionId: 's1', cardIds }),
+      body: JSON.stringify({ snapshot }),
+    });
+  });
+
+  await page.route('**/api/review/sessions/s1', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        sessionId: 's1',
+        status: 'in_progress',
+        currentIndex: 0,
+        totalCount: 2,
+        remainingCount: 2,
+        canGoPrev: false,
+        canGoNext: false,
+        filterSummary: { q: null, filter: 'today', sort: 'next_review_at', tagLabels: [], collectionLabels: [] },
+        currentCard: {
+          cardId: 't1',
+          title: 'Today 1',
+          content: 'due today',
+          answer: 'answer',
+          tags: [],
+          collectionLabel: null,
+          nextReviewAt: '2026-03-07T00:00:00.000Z',
+          reviewReason: { label: '今日の復習対象に含まれています', detail: '2026-03-07T00:00:00.000Z', source: 'next_review_at' },
+          currentAssessment: null,
+          locked: false,
+        },
+        summary: { forgotCount: 0, uncertainCount: 0, rememberedCount: 0, perfectCount: 0, assessedCount: 0, totalCount: 2 },
+      }),
     });
   });
 
@@ -86,6 +155,6 @@ test('US1: 今日の復習 → 復習開始', async ({ page }) => {
 
   await page.getByRole('button', { name: '復習開始', exact: true }).click();
 
-  await expect(page.getByTestId('session-id')).toHaveText('s1');
-  await expect(page.getByTestId('session-count')).toHaveText('2');
+  await expect(page.getByRole('heading', { name: 'Today 1' })).toBeVisible();
+  await expect(page.getByTestId('review-session-identifier')).toHaveText('s1');
 });
