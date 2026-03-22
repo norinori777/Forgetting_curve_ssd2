@@ -41,6 +41,7 @@ export type CardCreateFieldErrors = {
 export type CardCreateDraft = {
   title: string;
   content: string;
+  answer: string;
   tagInput: string;
   tagNames: string[];
   collectionId: string | null;
@@ -52,6 +53,7 @@ export type CardCreateDraft = {
 export type CreateCardRequest = {
   title: string;
   content: string;
+  answer?: string | null;
   tagNames: string[];
   collectionId?: string | null;
 };
@@ -62,6 +64,7 @@ export type CreateCardResponse = {
     id: string;
     title: string;
     content: string;
+    answer: string | null;
     tags: string[];
     collectionId: string | null;
     proficiency: number;
@@ -88,6 +91,7 @@ function createEmptyDraft(): CardCreateDraft {
   return {
     title: '',
     content: '',
+    answer: '',
     tagInput: '',
     tagNames: [],
     collectionId: null,
@@ -126,14 +130,21 @@ export function validateCardCreateDraft(draft: Pick<CardCreateDraft, 'title' | '
   return fieldErrors;
 }
 
-export function isCardCreateDraftDirty(draft: Pick<CardCreateDraft, 'title' | 'content' | 'tagInput' | 'collectionId'>): boolean {
-  return draft.title.trim().length > 0 || draft.content.trim().length > 0 || draft.tagInput.trim().length > 0 || draft.collectionId !== null;
+export function isCardCreateDraftDirty(draft: Pick<CardCreateDraft, 'title' | 'content' | 'answer' | 'tagInput' | 'collectionId'>): boolean {
+  return (
+    draft.title.trim().length > 0 ||
+    draft.content.trim().length > 0 ||
+    draft.answer.length > 0 ||
+    draft.tagInput.trim().length > 0 ||
+    draft.collectionId !== null
+  );
 }
 
 export function toCreateCardRequest(draft: CardCreateDraft): CreateCardRequest {
   return {
     title: draft.title.trim(),
     content: draft.content.trim(),
+    answer: draft.answer,
     tagNames: normalizeTagNames(draft.tagInput),
     collectionId: draft.collectionId,
   };
@@ -158,6 +169,7 @@ export function readStoredCardCreateDraft(): CardCreateDraft | null {
       ...createEmptyDraft(),
       title: typeof parsed.title === 'string' ? parsed.title : '',
       content: typeof parsed.content === 'string' ? parsed.content : '',
+      answer: typeof parsed.answer === 'string' ? parsed.answer : '',
       tagInput: typeof parsed.tagInput === 'string' ? parsed.tagInput : '',
       tagNames: typeof parsed.tagInput === 'string' ? normalizeTagNames(parsed.tagInput) : [],
       collectionId: typeof parsed.collectionId === 'string' ? parsed.collectionId : null,
@@ -176,6 +188,7 @@ export function writeStoredCardCreateDraft(draft: CardCreateDraft): void {
     JSON.stringify({
       title: draft.title,
       content: draft.content,
+      answer: draft.answer,
       tagInput: draft.tagInput,
       collectionId: draft.collectionId,
       collectionLabel: draft.collectionLabel,
