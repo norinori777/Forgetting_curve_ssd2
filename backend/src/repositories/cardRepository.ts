@@ -10,6 +10,7 @@ export type ApiCard = {
   id: string;
   title: string;
   content: string;
+  answer: string | null;
   tags: string[];
   collectionId: string | null;
   proficiency: number;
@@ -66,6 +67,7 @@ function toApiCard(card: CardWithTags): ApiCard {
     id: card.id,
     title: card.title,
     content: card.content,
+    answer: card.answer ?? null,
     tags: (card.tags ?? []).map((ct) => ct.tag?.name).filter((t): t is string => typeof t === 'string'),
     collectionId: card.collectionId,
     proficiency: card.proficiency,

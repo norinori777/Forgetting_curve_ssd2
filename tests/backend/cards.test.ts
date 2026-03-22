@@ -5,6 +5,7 @@ type CardRow = {
   id: string;
   title: string;
   content: string;
+  answer?: string | null;
   collectionId: string | null;
   proficiency: number;
   nextReviewAt: Date;
@@ -40,6 +41,7 @@ function compareAsc(a: any, b: any): number {
 function matchScalar(value: any, condition: any): boolean {
   if (condition && typeof condition === 'object' && !Array.isArray(condition)) {
     if (condition.contains !== undefined) {
+      if (value == null) return false;
       const needle = String(condition.contains);
       const hay = String(value);
       return condition.mode === 'insensitive'
@@ -90,6 +92,10 @@ function matchWhere(card: CardRow, where: any): boolean {
     }
     if (key === 'content') {
       if (!matchScalar(card.content, cond)) return false;
+      continue;
+    }
+    if (key === 'answer') {
+      if (!matchScalar(card.answer, cond)) return false;
       continue;
     }
     if (key === 'collectionId') {
@@ -642,5 +648,100 @@ describe('backend cards API', () => {
       .expect(400);
 
     expect(res.body.error).toBe('invalid_body');
+  });
+
+  it('returns answer fields for present and unanswered cards', async () => {
+    const { listCards } = await import('../../backend/src/repositories/cardRepository.ts');
+
+    store.cards = [
+      {
+        id: 'c1',
+        title: 'Answered',
+        content: 'question',
+        answer: 'line1\nline2',
+        collectionId: null,
+        proficiency: 1,
+        nextReviewAt: new Date('2026-03-07T00:00:00.000Z'),
+        lastCorrectRate: 0.1,
+        isArchived: false,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      },
+      {
+        id: 'c2',
+        title: 'Unanswered',
+        content: 'question',
+        answer: null,
+        collectionId: null,
+        proficiency: 2,
+        nextReviewAt: new Date('2026-03-08T00:00:00.000Z'),
+        lastCorrectRate: 0.2,
+        isArchived: false,
+        createdAt: new Date('2026-03-02T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-02T00:00:00.000Z'),
+      },
+    ];
+
+    const result = await listCards({
+      cursor: undefined,
+      limit: 50,
+      q: undefined,
+      tagIds: undefined,
+      collectionIds: undefined,
+      filter: undefined,
+      sort: 'next_review_at',
+    });
+
+    expect(result.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'c1', answer: 'line1\nline2' }),
+        expect.objectContaining({ id: 'c2', answer: null }),
+      ]),
+    );
+  });
+
+  it('matches answer text in q search', async () => {
+    const { listCards } = await import('../../backend/src/repositories/cardRepository.ts');
+
+    store.cards = [
+      {
+        id: 'c1',
+        title: 'Question',
+        content: 'prompt',
+        answer: 'hidden keyword',
+        collectionId: null,
+        proficiency: 1,
+        nextReviewAt: new Date('2026-03-07T00:00:00.000Z'),
+        lastCorrectRate: 0.1,
+        isArchived: false,
+        createdAt: new Date('2026-03-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-01T00:00:00.000Z'),
+      },
+      {
+        id: 'c2',
+        title: 'Other',
+        content: 'prompt',
+        answer: null,
+        collectionId: null,
+        proficiency: 2,
+        nextReviewAt: new Date('2026-03-08T00:00:00.000Z'),
+        lastCorrectRate: 0.2,
+        isArchived: false,
+        createdAt: new Date('2026-03-02T00:00:00.000Z'),
+        updatedAt: new Date('2026-03-02T00:00:00.000Z'),
+      },
+    ];
+
+    const result = await listCards({
+      cursor: undefined,
+      limit: 50,
+      q: 'keyword',
+      tagIds: undefined,
+      collectionIds: undefined,
+      filter: undefined,
+      sort: 'next_review_at',
+    });
+
+    expect(result.items.map((item) => item.id)).toEqual(['c1']);
   });
 });
