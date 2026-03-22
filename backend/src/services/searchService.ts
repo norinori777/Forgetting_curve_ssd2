@@ -20,6 +20,7 @@ export function buildCardBaseFilters(query: ListCardsQuery, now = new Date()): P
 			OR: [
 				{ title: { contains: query.q, mode: 'insensitive' } },
 				{ content: { contains: query.q, mode: 'insensitive' } },
+				{ answer: { contains: query.q, mode: 'insensitive' } },
 			],
 		});
 	}

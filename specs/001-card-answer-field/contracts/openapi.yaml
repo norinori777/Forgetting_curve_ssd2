@@ -1,0 +1,113 @@
+openapi: 3.0.3
+info:
+  title: Card Answer Extension Contract
+  version: '0.1.0'
+paths:
+  /api/cards:
+    get:
+      summary: List non-archived cards with answer metadata and cursor pagination
+      parameters:
+        - in: query
+          name: cursor
+          schema:
+            type: string
+          description: Cursor token (opaque, from previous response)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Full-text search query for title, content, and answer matches
+        - in: query
+          name: tagIds
+          schema:
+            type: string
+          description: Comma-separated tag ids
+        - in: query
+          name: collectionIds
+          schema:
+            type: string
+          description: Comma-separated collection ids
+        - in: query
+          name: filter
+          schema:
+            type: string
+            enum: [today, overdue, unlearned]
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [next_review_at, proficiency, created_at]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Card'
+                  nextCursor:
+                    type: string
+                    description: Opaque cursor to fetch next page
+        '400':
+          description: Invalid query or cursor/sort mismatch
+components:
+  schemas:
+    Card:
+      type: object
+      required:
+        - id
+        - title
+        - content
+        - tags
+        - proficiency
+        - nextReviewAt
+        - lastCorrectRate
+        - isArchived
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        answer:
+          type: string
+          nullable: true
+          description: Optional multiline plain-text answer associated with the card
+        tags:
+          type: array
+          items:
+            type: string
+        collectionId:
+          type: string
+          nullable: true
+        proficiency:
+          type: number
+        nextReviewAt:
+          type: string
+          format: date-time
+        lastCorrectRate:
+          type: number
+        isArchived:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
