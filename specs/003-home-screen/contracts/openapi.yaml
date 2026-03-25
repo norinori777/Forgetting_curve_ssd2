@@ -1,0 +1,105 @@
+openapi: 3.0.3
+info:
+  title: Home Screen API Contract
+  version: '0.1.0'
+paths:
+  /api/home:
+    get:
+      summary: Get the home dashboard snapshot for the top page
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeDashboardResponse'
+        '503':
+          description: Temporary failure while resolving home dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    enum:
+                      - home_temporary_failure
+components:
+  schemas:
+    HomeDashboardResponse:
+      type: object
+      required:
+        - generatedAt
+        - summary
+        - recentActivities
+        - state
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        summary:
+          $ref: '#/components/schemas/HomeSummary'
+        recentActivities:
+          type: array
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/RecentActivity'
+        state:
+          $ref: '#/components/schemas/HomeViewState'
+    HomeSummary:
+      type: object
+      required:
+        - todayDueCount
+        - overdueCount
+        - unlearnedCount
+        - streakDays
+      properties:
+        todayDueCount:
+          type: integer
+          minimum: 0
+        overdueCount:
+          type: integer
+          minimum: 0
+        unlearnedCount:
+          type: integer
+          minimum: 0
+        streakDays:
+          type: integer
+          minimum: 0
+    RecentActivity:
+      type: object
+      required:
+        - id
+        - type
+        - occurredAt
+        - label
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum:
+            - review_completed
+            - review_started
+            - card_created
+        occurredAt:
+          type: string
+          format: date-time
+        label:
+          type: string
+        count:
+          type: integer
+          minimum: 0
+          nullable: true
+    HomeViewState:
+      type: object
+      required:
+        - firstUse
+        - noReviewToday
+      properties:
+        firstUse:
+          type: boolean
+        noReviewToday:
+          type: boolean
