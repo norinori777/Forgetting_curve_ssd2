@@ -77,6 +77,7 @@ model ReviewSession {
   sourceSort             String              @map("source_sort")
   sourceTagLabels        String[]            @default([]) @map("source_tag_labels")
   sourceCollectionLabels String[]            @default([]) @map("source_collection_labels")
+  sourceTargetResolution Json?               @map("source_target_resolution")
   createdAt              DateTime            @default(now()) @map("created_at")
   updatedAt              DateTime            @updatedAt @map("updated_at")
   completedAt            DateTime?           @map("completed_at")

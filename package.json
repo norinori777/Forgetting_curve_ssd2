@@ -6,7 +6,8 @@
     "frontend"
   ],
   "scripts": {
-    "dev:server": "npm --workspace backend run dev",
+    "prisma:generate": "prisma generate",
+    "dev:server": "npm run prisma:generate && npm --workspace backend run dev",
     "dev:client": "npm --workspace frontend run dev",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",

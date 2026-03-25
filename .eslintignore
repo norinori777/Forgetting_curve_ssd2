@@ -6,4 +6,12 @@ storybook-static/
 test-results/
 playwright-report/
 *.min.js
+node_modules/
+dist/
+build/
+coverage/
+storybook-static/
+test-results/
+playwright-report/
+*.min.js
 **/storybook-static/

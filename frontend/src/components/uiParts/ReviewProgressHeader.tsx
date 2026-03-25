@@ -14,8 +14,21 @@ function formatFilterSummary(snapshot: ReviewSessionSnapshot): string {
   return parts.join(' / ');
 }
 
+function formatExclusionReason(reason: 'over_limit' | 'unavailable'): string {
+  return reason === 'over_limit' ? '上限超過' : '利用不能';
+}
+
+function formatTargetResolution(snapshot: ReviewSessionSnapshot): string | null {
+  const targetResolution = snapshot.filterSummary.targetResolution;
+  if (!targetResolution || targetResolution.excludedCount <= 0) return null;
+
+  const breakdown = targetResolution.exclusionBreakdown.map((item) => `${formatExclusionReason(item.reason)} ${item.count} 件`).join('、');
+  return `除外 ${targetResolution.excludedCount} 件（${breakdown}）`;
+}
+
 export function ReviewProgressHeader({ snapshot }: Props) {
   const card = snapshot.currentCard;
+  const targetResolutionMessage = formatTargetResolution(snapshot);
 
   return (
     <section className="rounded-[28px] border border-border-subtle bg-surface-panel p-5" aria-label="review-progress">
@@ -40,6 +53,7 @@ export function ReviewProgressHeader({ snapshot }: Props) {
         <div className="rounded-2xl bg-surface-base px-4 py-3">
           <p className="text-xs uppercase tracking-[0.12em] text-text-muted">開始条件</p>
           <p className="mt-2 text-sm leading-6 text-text-secondary">{formatFilterSummary(snapshot)}</p>
+          {targetResolutionMessage ? <p className="mt-2 text-sm font-medium text-status-success">{targetResolutionMessage}</p> : null}
         </div>
 
         {card ? (

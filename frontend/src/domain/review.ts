@@ -11,6 +11,20 @@ export type ReviewReason = {
   source: ReviewReasonSource | null;
 };
 
+export type ReviewTargetExclusionReason = 'over_limit' | 'unavailable';
+
+export type ReviewTargetExclusion = {
+  reason: ReviewTargetExclusionReason;
+  count: number;
+};
+
+export type ReviewTargetResolution = {
+  matchedCount: number;
+  includedCount: number;
+  excludedCount: number;
+  exclusionBreakdown: ReviewTargetExclusion[];
+};
+
 export type ReviewCardSnapshot = {
   cardId: string;
   title: string;
@@ -30,6 +44,7 @@ export type ReviewFilterSummary = {
   sort: CardSortKey;
   tagLabels: string[];
   collectionLabels: string[];
+  targetResolution?: ReviewTargetResolution;
 };
 
 export type ReviewSessionSummary = {

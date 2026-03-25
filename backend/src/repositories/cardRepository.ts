@@ -5,6 +5,15 @@ import type { FilterOption } from '../domain/cardList.js';
 import type { CardSortKey, CreateCardBody, CursorPayload, ListCardsQuery } from '../schemas/cards.js';
 import { decodeCursor, encodeCursor } from '../schemas/cards.js';
 import { buildCardBaseFilters } from '../services/searchService.js';
+import type { CardListFilter } from '../domain/cardList.js';
+import type { ReviewTargetExclusion, ReviewTargetResolution } from '../domain/review.js';
+
+export const REVIEW_START_LIMIT = 200;
+
+export type ResolvedReviewTargetSet = {
+  cardIds: string[];
+  targetResolution: ReviewTargetResolution;
+};
 
 export type ApiCard = {
   id: string;
@@ -88,6 +97,21 @@ function buildOrderBy(sort: CardSortKey): Prisma.CardOrderByWithRelationInput[] 
   return [{ nextReviewAt: 'asc' }, { id: 'asc' }];
 }
 
+function buildTargetResolution(matchedCount: number, includedCount: number, unavailableCount: number): ReviewTargetResolution {
+  const overLimitCount = Math.max(matchedCount - unavailableCount - includedCount, 0);
+  const exclusionBreakdown: ReviewTargetExclusion[] = [];
+
+  if (overLimitCount > 0) exclusionBreakdown.push({ reason: 'over_limit', count: overLimitCount });
+  if (unavailableCount > 0) exclusionBreakdown.push({ reason: 'unavailable', count: unavailableCount });
+
+  return {
+    matchedCount,
+    includedCount,
+    excludedCount: overLimitCount + unavailableCount,
+    exclusionBreakdown,
+  };
+}
+
 function toApiCard(card: CardWithTags): ApiCard {
   return {
     id: card.id,
@@ -142,6 +166,49 @@ export async function listCards(query: ListCardsQuery): Promise<{ items: ApiCard
     : undefined;
 
   return { items, nextCursor };
+}
+
+export async function resolveReviewTargetsForFilter(filter?: CardListFilter): Promise<ResolvedReviewTargetSet> {
+  const query: ListCardsQuery = {
+    cursor: undefined,
+    limit: REVIEW_START_LIMIT,
+    q: filter?.q,
+    tagIds: filter?.tagIds ?? [],
+    collectionIds: filter?.collectionIds ?? [],
+    filter: filter?.filter,
+    sort: filter?.sort ?? 'next_review_at',
+  };
+
+  const where: Prisma.CardWhereInput = { AND: buildCardBaseFilters(query) };
+  const matchedCount = await prisma.card.count({ where });
+  const rows = await prisma.card.findMany({
+    where,
+    orderBy: buildOrderBy(query.sort),
+    take: REVIEW_START_LIMIT,
+    select: { id: true },
+  });
+
+  const cardIds = rows.map((row) => row.id);
+  return {
+    cardIds,
+    targetResolution: buildTargetResolution(matchedCount, cardIds.length, 0),
+  };
+}
+
+export async function resolveReviewTargetsForCardIds(cardIds: string[]): Promise<ResolvedReviewTargetSet> {
+  const requestedIds = Array.from(new Set(cardIds));
+  const rows = await prisma.card.findMany({
+    where: { id: { in: requestedIds }, isArchived: false },
+    select: { id: true },
+  });
+  const availableIds = new Set(rows.map((row) => row.id));
+  const includedIds = requestedIds.filter((cardId) => availableIds.has(cardId)).slice(0, REVIEW_START_LIMIT);
+  const unavailableCount = requestedIds.filter((cardId) => !availableIds.has(cardId)).length;
+
+  return {
+    cardIds: includedIds,
+    targetResolution: buildTargetResolution(requestedIds.length, includedIds.length, unavailableCount),
+  };
 }
 
 export async function archiveCards(cardIds: string[]): Promise<number> {

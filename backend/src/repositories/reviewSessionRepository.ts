@@ -8,6 +8,7 @@ import {
   type ReviewReason,
   type ReviewSessionSnapshot,
   type ReviewSessionSummary,
+  type ReviewTargetResolution,
 } from '../domain/review.js';
 
 type ReviewSessionRow = {
@@ -20,6 +21,7 @@ type ReviewSessionRow = {
   sourceSort: 'next_review_at' | 'proficiency' | 'created_at';
   sourceTagLabels: string[];
   sourceCollectionLabels: string[];
+  sourceTargetResolution: ReviewTargetResolution | null;
   completedAt: Date | null;
   cards: Array<{
     sessionId: string;
@@ -59,6 +61,7 @@ type PrismaLabelClient = {
         sourceSort: string;
         sourceTagLabels: string[];
         sourceCollectionLabels: string[];
+        sourceTargetResolution?: unknown;
       };
     }): Promise<{ id: string }>;
     findUnique(args: { where: { id: string }; include: unknown }): Promise<ReviewSessionRow | null>;
@@ -192,8 +195,8 @@ async function loadSession(sessionId: string): Promise<ReviewSessionRow> {
   return session;
 }
 
-export async function createReviewSession(input: { cardIds: string[]; filter?: CardListFilter }): Promise<ReviewSessionSnapshot> {
-  const { cardIds, filter } = input;
+export async function createReviewSession(input: { cardIds: string[]; filter?: CardListFilter; targetResolution?: ReviewTargetResolution }): Promise<ReviewSessionSnapshot> {
+  const { cardIds, filter, targetResolution } = input;
   if (cardIds.length === 0) {
     throw new ReviewRepositoryError('NO_CARDS', 'review_session_has_no_cards');
   }
@@ -213,6 +216,12 @@ export async function createReviewSession(input: { cardIds: string[]; filter?: C
         sourceSort: filter?.sort ?? 'next_review_at',
         sourceTagLabels: tagLabels,
         sourceCollectionLabels: collectionLabels,
+        sourceTargetResolution: targetResolution ?? {
+          matchedCount: cardIds.length,
+          includedCount: cardIds.length,
+          excludedCount: 0,
+          exclusionBreakdown: [],
+        },
       },
     });
 
@@ -253,6 +262,13 @@ export async function getReviewSessionSnapshot(sessionId: string): Promise<Revie
       sort: session.sourceSort,
       tagLabels: session.sourceTagLabels,
       collectionLabels: session.sourceCollectionLabels,
+      targetResolution:
+        session.sourceTargetResolution ?? {
+          matchedCount: session.totalCards,
+          includedCount: session.totalCards,
+          excludedCount: 0,
+          exclusionBreakdown: [],
+        },
     },
     currentCard: currentRow ? toCardSnapshot(session, currentRow, explicitCardIds) : null,
     summary,

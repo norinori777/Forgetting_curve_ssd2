@@ -2,6 +2,7 @@ import type { ReviewAssessment } from '../../domain/review';
 
 type Props = {
   answerVisible: boolean;
+  busy: boolean;
   locked: boolean;
   currentAssessment: ReviewAssessment | null;
   canGoPrev: boolean;
@@ -22,6 +23,7 @@ const ASSESSMENTS: Array<{ value: ReviewAssessment; label: string; shortcut: str
 
 export function ReviewAssessmentControls({
   answerVisible,
+  busy,
   locked,
   currentAssessment,
   canGoPrev,
@@ -38,19 +40,19 @@ export function ReviewAssessmentControls({
         <button
           type="button"
           onClick={onRevealAnswer}
-          disabled={answerVisible}
+          disabled={answerVisible || busy}
           aria-keyshortcuts="V"
           className="rounded-full bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-primary/90 disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-text-muted"
         >
           回答を表示
         </button>
-        <button type="button" onClick={onPrev} disabled={!canGoPrev} className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-primary disabled:cursor-not-allowed disabled:text-text-muted">
+        <button type="button" onClick={onPrev} disabled={!canGoPrev || busy} className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-primary disabled:cursor-not-allowed disabled:text-text-muted">
           前へ
         </button>
-        <button type="button" onClick={onNext} disabled={!canGoNext} className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-primary disabled:cursor-not-allowed disabled:text-text-muted">
+        <button type="button" onClick={onNext} disabled={!canGoNext || busy} className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-primary disabled:cursor-not-allowed disabled:text-text-muted">
           次へ
         </button>
-        <button type="button" onClick={onBackToList} className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-secondary">
+        <button type="button" onClick={onBackToList} disabled={busy} className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-secondary disabled:cursor-not-allowed disabled:text-text-muted">
           一覧へ戻る
         </button>
       </div>
@@ -62,7 +64,7 @@ export function ReviewAssessmentControls({
             <button
               key={item.value}
               type="button"
-              disabled={!answerVisible || locked}
+              disabled={!answerVisible || locked || busy}
               aria-keyshortcuts={item.shortcut}
               onClick={() => onSelectAssessment(item.value)}
               className={`rounded-2xl border px-4 py-3 text-left transition ${
