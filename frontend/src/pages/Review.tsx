@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { AsyncState } from '../components/uiParts/AsyncState';
@@ -44,10 +44,12 @@ export function Review() {
   const [cachedMode, setCachedMode] = useState(false);
   const [answerVisible, setAnswerVisible] = useState(false);
   const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [interactionLocked, setInteractionLocked] = useState(false);
+  const interactionLockedRef = useRef(false);
 
   const currentCard = snapshot?.currentCard ?? null;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     setAnswerVisible(false);
   }, [currentCard?.cardId]);
 
@@ -72,6 +74,18 @@ export function Review() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function beginInteraction(): boolean {
+    if (interactionLockedRef.current) return false;
+    interactionLockedRef.current = true;
+    setInteractionLocked(true);
+    return true;
+  }
+
+  function endInteraction(): void {
+    interactionLockedRef.current = false;
+    setInteractionLocked(false);
   }
 
   async function syncPendingAssessment(sessionId: string, currentSnapshot: ReviewSessionSnapshot | null): Promise<boolean> {
@@ -146,6 +160,7 @@ export function Review() {
 
   async function handleAssessment(assessment: ReviewAssessment) {
     if (!snapshot?.currentCard || !resolvedSessionId || snapshot.currentCard.locked) return;
+    if (!beginInteraction()) return;
 
     setError(null);
     setSyncNotice(null);
@@ -180,27 +195,30 @@ export function Review() {
       }
 
       setError(getErrorMessage(cause, 'failed to save assessment'));
+    } finally {
+      endInteraction();
     }
   }
 
   async function handleNavigation(direction: 'prev' | 'next') {
     if (!resolvedSessionId || !snapshot) return;
-
-    if (direction === 'next') {
-      const pending = getPendingReviewAssessment(resolvedSessionId);
-      if (pending) {
-        const synced = await syncPendingAssessment(resolvedSessionId, snapshot);
-        if (!synced) {
-          setError('未同期の評価があります。再試行してください。');
-          return;
-        }
-      }
-    }
-
-    setError(null);
-    setSyncNotice(null);
+    if (!beginInteraction()) return;
 
     try {
+      if (direction === 'next') {
+        const pending = getPendingReviewAssessment(resolvedSessionId);
+        if (pending) {
+          const synced = await syncPendingAssessment(resolvedSessionId, snapshot);
+          if (!synced) {
+            setError('未同期の評価があります。再試行してください。');
+            return;
+          }
+        }
+      }
+
+      setError(null);
+      setSyncNotice(null);
+
       const nextSnapshot = await navigateReviewSession(resolvedSessionId, direction);
       setSnapshot(nextSnapshot);
       cacheReviewSessionSnapshot(nextSnapshot);
@@ -209,6 +227,8 @@ export function Review() {
       }
     } catch (cause) {
       setError(getErrorMessage(cause, 'failed to move review card'));
+    } finally {
+      endInteraction();
     }
   }
 
@@ -216,6 +236,7 @@ export function Review() {
     function onKeyDown(event: KeyboardEvent) {
       if (!snapshot?.currentCard || isTypingTarget(event.target)) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.repeat || interactionLockedRef.current) return;
 
       if (event.key.toLowerCase() === 'v') {
         event.preventDefault();
@@ -313,7 +334,9 @@ export function Review() {
         </section>
 
         <ReviewAssessmentControls
+          key={snapshot.currentCard.cardId}
           answerVisible={answerVisible}
+          busy={interactionLocked || loading}
           locked={snapshot.currentCard.locked}
           currentAssessment={snapshot.currentCard.currentAssessment}
           canGoPrev={snapshot.canGoPrev}
@@ -326,7 +349,7 @@ export function Review() {
         />
       </div>
     );
-  }, [answerVisible, loading, navigate, resolvedSessionId, snapshot, viewState]);
+  }, [answerVisible, interactionLocked, loading, navigate, resolvedSessionId, snapshot, viewState]);
 
   return (
     <section className="space-y-4 py-8" aria-label="review-page">

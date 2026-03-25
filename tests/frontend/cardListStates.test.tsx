@@ -210,6 +210,106 @@ describe('CardList states', () => {
     });
   });
 
+  it('starts review from current filter and shows over-limit notice after navigation', async () => {
+    const user = userEvent.setup();
+    const snapshot = {
+      sessionId: 's-cap',
+      status: 'in_progress',
+      currentIndex: 0,
+      totalCount: 200,
+      remainingCount: 200,
+      canGoPrev: false,
+      canGoNext: false,
+      filterSummary: {
+        q: null,
+        filter: null,
+        sort: 'next_review_at',
+        tagLabels: [],
+        collectionLabels: [],
+        targetResolution: {
+          matchedCount: 205,
+          includedCount: 200,
+          excludedCount: 5,
+          exclusionBreakdown: [{ reason: 'over_limit', count: 5 }],
+        },
+      },
+      currentCard: {
+        cardId: 'c1',
+        title: 'Card 1',
+        content: 'question one',
+        answer: 'answer one',
+        tags: [],
+        collectionLabel: null,
+        nextReviewAt: new Date('2026-03-07T00:00:00.000Z').toISOString(),
+        reviewReason: {
+          label: '開始条件に一致したため復習対象です',
+          detail: null,
+          source: 'filter_match',
+        },
+        currentAssessment: null,
+        locked: false,
+      },
+      summary: {
+        forgotCount: 0,
+        uncertainCount: 0,
+        rememberedCount: 0,
+        perfectCount: 0,
+        assessedCount: 0,
+        totalCount: 200,
+      },
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/api/cards')) {
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  id: 'c1',
+                  title: 'Card 1',
+                  content: 'question one',
+                  answer: 'answer one',
+                  tags: [],
+                  collectionId: null,
+                  proficiency: 0,
+                  nextReviewAt: new Date('2026-03-07T00:00:00.000Z').toISOString(),
+                  lastCorrectRate: 0,
+                  isArchived: false,
+                  createdAt: new Date('2026-03-01T00:00:00.000Z').toISOString(),
+                  updatedAt: new Date('2026-03-01T00:00:00.000Z').toISOString(),
+                },
+              ],
+              nextCursor: undefined,
+            }),
+            { status: 200 },
+          );
+        }
+        if (url.includes('/api/review/start') && init?.method === 'POST') {
+          return new Response(JSON.stringify({ snapshot }), { status: 200 });
+        }
+        if (url.includes('/api/review/sessions/s-cap') && !init?.method) {
+          return new Response(JSON.stringify(snapshot), { status: 200 });
+        }
+        return new Response(JSON.stringify({ items: [] }), { status: 200 });
+      }),
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/cards']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Card 1' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '復習開始' }));
+
+    expect(await screen.findByRole('heading', { name: '復習' })).toBeInTheDocument();
+    expect(screen.getByText('除外 5 件（上限超過 5 件）')).toBeInTheDocument();
+  });
+
   it('shows answer links per card and toggles only the selected card', async () => {
     const user = userEvent.setup();
 

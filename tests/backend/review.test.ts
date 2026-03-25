@@ -28,6 +28,12 @@ type ReviewSessionRow = {
   sourceSort: 'next_review_at' | 'proficiency' | 'created_at';
   sourceTagLabels: string[];
   sourceCollectionLabels: string[];
+  sourceTargetResolution: {
+    matchedCount: number;
+    includedCount: number;
+    excludedCount: number;
+    exclusionBreakdown: Array<{ reason: 'over_limit' | 'unavailable'; count: number }>;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
   completedAt: Date | null;
@@ -91,6 +97,82 @@ function makeStore(): Store {
   };
 }
 
+function buildCardRow(index: number): CardRow {
+  return {
+    id: `c${index}`,
+    title: `Card ${index}`,
+    content: `question ${index}`,
+    answer: `answer ${index}`,
+    collectionId: index % 2 === 0 ? 'col1' : null,
+    proficiency: index % 4,
+    nextReviewAt: new Date(`2026-03-${String(((index - 1) % 28) + 1).padStart(2, '0')}T00:00:00.000Z`),
+    lastCorrectRate: 0.1,
+    isArchived: false,
+    createdAt: new Date(`2026-02-${String(((index - 1) % 28) + 1).padStart(2, '0')}T00:00:00.000Z`),
+    updatedAt: new Date(`2026-02-${String(((index - 1) % 28) + 1).padStart(2, '0')}T00:00:00.000Z`),
+  };
+}
+
+function applyCardFilters(args: any): CardRow[] {
+  let cards = store.cards.filter((card) => !card.isArchived);
+  const and = args?.where?.AND as any[] | undefined;
+
+  if (and) {
+    for (const part of and) {
+      if (part.OR && Array.isArray(part.OR)) {
+        cards = cards.filter((card) =>
+          part.OR.some((entry: any) => {
+            if (entry.title?.contains) return card.title.toLowerCase().includes(String(entry.title.contains).toLowerCase());
+            if (entry.content?.contains) return card.content.toLowerCase().includes(String(entry.content.contains).toLowerCase());
+            if (entry.answer?.contains) return (card.answer ?? '').toLowerCase().includes(String(entry.answer.contains).toLowerCase());
+            return false;
+          }),
+        );
+      }
+      if (part.collectionId?.in) cards = cards.filter((card) => part.collectionId.in.includes(card.collectionId));
+      if (part.tags?.some?.OR) {
+        const allowed = part.tags.some.OR.flatMap((entry: any) => [entry.tagId, entry.tag?.name?.in]).flat().filter(Boolean);
+        cards = cards.filter((card) =>
+          store.cardTags.some((row) => row.cardId === card.id && allowed.includes(row.tagId)) ||
+          store.cardTags.some((row) => row.cardId === card.id && allowed.includes(store.tags.find((tag) => tag.id === row.tagId)?.name)),
+        );
+      }
+      if (part.proficiency === 0) cards = cards.filter((card) => card.proficiency === 0);
+      if (part.nextReviewAt?.lte) cards = cards.filter((card) => card.nextReviewAt <= new Date(part.nextReviewAt.lte));
+      if (part.nextReviewAt?.lt) cards = cards.filter((card) => card.nextReviewAt < new Date(part.nextReviewAt.lt));
+    }
+  }
+
+  const orderBy = args?.orderBy ?? [];
+  cards.sort((left, right) => {
+    for (const order of orderBy) {
+      if (order.nextReviewAt) {
+        const diff = left.nextReviewAt.getTime() - right.nextReviewAt.getTime();
+        if (diff !== 0) return diff;
+      }
+      if (order.createdAt) {
+        const diff = left.createdAt.getTime() - right.createdAt.getTime();
+        if (diff !== 0) return diff;
+      }
+      if (order.proficiency) {
+        const diff = left.proficiency - right.proficiency;
+        if (diff !== 0) return diff;
+      }
+      if (order.id) {
+        const diff = left.id.localeCompare(right.id);
+        if (diff !== 0) return diff;
+      }
+    }
+    return 0;
+  });
+
+  if (typeof args?.take === 'number') {
+    cards = cards.slice(0, args.take);
+  }
+
+  return cards;
+}
+
 function makeJoinedCard(cardId: string) {
   const card = store.cards.find((item) => item.id === cardId)!;
   return {
@@ -103,22 +185,16 @@ function makeJoinedCard(cardId: string) {
 const prisma = {
   card: {
     findMany: async (args: any) => {
-      let cards = store.cards.filter((card) => !card.isArchived);
-      const where = args?.where?.AND as any[] | undefined;
-      if (where) {
-        for (const part of where) {
-          if (part.collectionId?.in) cards = cards.filter((card) => part.collectionId.in.includes(card.collectionId));
-          if (part.tags?.some?.OR) {
-            const allowed = part.tags.some.OR.map((entry: any) => entry.tagId).filter(Boolean);
-            cards = cards.filter((card) => store.cardTags.some((row) => row.cardId === card.id && allowed.includes(row.tagId)));
-          }
-        }
+      const cards = applyCardFilters(args);
+      if (args?.select?.id) {
+        return cards.map((card) => ({ id: card.id }));
       }
       return cards.map((card) => ({
         ...card,
         tags: store.cardTags.filter((row) => row.cardId === card.id).map((row) => ({ tagId: row.tagId, tag: store.tags.find((tag) => tag.id === row.tagId) })),
       }));
     },
+    count: async (args: any) => applyCardFilters(args).length,
   },
   tag: {
     findMany: async (args: any) => {
@@ -144,6 +220,7 @@ const prisma = {
         sourceSort: data.sourceSort,
         sourceTagLabels: data.sourceTagLabels ?? [],
         sourceCollectionLabels: data.sourceCollectionLabels ?? [],
+        sourceTargetResolution: data.sourceTargetResolution ?? null,
         createdAt: new Date(),
         updatedAt: new Date(),
         completedAt: null,
@@ -269,6 +346,45 @@ describe('backend review API', () => {
 
     await request(app).post('/api/review/start').send({ filter: { sort: 'next_review_at', tagIds: [], collectionIds: [] } }).expect(404);
     await request(app).get('/api/review/sessions/missing').expect(404);
+  });
+
+  it('caps filter-based review start at 200 cards and persists targetResolution metadata', async () => {
+    const { app } = await import('../../backend/src/index.ts');
+    store.cards = Array.from({ length: 205 }, (_, index) => buildCardRow(index + 1));
+    store.cardTags = [];
+
+    const res = await request(app)
+      .post('/api/review/start')
+      .send({ filter: { sort: 'next_review_at', tagIds: [], collectionIds: [] } })
+      .expect(200);
+
+    expect(res.body.snapshot.totalCount).toBe(200);
+    expect(res.body.snapshot.filterSummary.targetResolution).toEqual({
+      matchedCount: 205,
+      includedCount: 200,
+      excludedCount: 5,
+      exclusionBreakdown: [{ reason: 'over_limit', count: 5 }],
+    });
+
+    const followUp = await request(app).get(`/api/review/sessions/${res.body.snapshot.sessionId}`).expect(200);
+    expect(followUp.body.filterSummary.targetResolution.excludedCount).toBe(5);
+  });
+
+  it('reports unavailable explicit card ids in targetResolution metadata', async () => {
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/review/start')
+      .send({ cardIds: ['c1', 'missing', 'c2'] })
+      .expect(200);
+
+    expect(res.body.snapshot.totalCount).toBe(2);
+    expect(res.body.snapshot.filterSummary.targetResolution).toEqual({
+      matchedCount: 3,
+      includedCount: 2,
+      excludedCount: 1,
+      exclusionBreakdown: [{ reason: 'unavailable', count: 1 }],
+    });
   });
 
   it('returns 503 on temporary repository failures', async () => {

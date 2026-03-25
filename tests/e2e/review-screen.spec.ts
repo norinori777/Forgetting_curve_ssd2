@@ -247,3 +247,71 @@ test('resumes the same in-progress session after leaving the review page', async
   await expect(page.getByRole('heading', { name: 'Review Card 2' })).toBeVisible();
   await expect(page.getByText('question two')).toBeVisible();
 });
+
+test('shows targetResolution notice when review start excludes cards over the cap', async ({ page }) => {
+  const snapshot = buildSnapshot({
+    totalCount: 200,
+    remainingCount: 200,
+    filterSummary: {
+      q: null,
+      filter: 'today',
+      sort: 'next_review_at',
+      tagLabels: ['tag1'],
+      collectionLabels: [],
+      targetResolution: {
+        matchedCount: 205,
+        includedCount: 200,
+        excludedCount: 5,
+        exclusionBreakdown: [{ reason: 'over_limit', count: 5 }],
+      },
+    },
+    summary: {
+      forgotCount: 0,
+      uncertainCount: 0,
+      rememberedCount: 0,
+      perfectCount: 0,
+      assessedCount: 0,
+      totalCount: 200,
+    },
+  });
+
+  await page.route('**/api/cards**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: 'c1',
+            title: 'Review Card 1',
+            content: 'question one',
+            answer: 'answer one',
+            tags: ['tag1'],
+            collectionId: null,
+            proficiency: 0,
+            nextReviewAt: '2026-03-07T00:00:00.000Z',
+            lastCorrectRate: 0,
+            isArchived: false,
+            createdAt: '2026-03-01T00:00:00.000Z',
+            updatedAt: '2026-03-01T00:00:00.000Z',
+          },
+        ],
+        nextCursor: undefined,
+      }),
+    });
+  });
+
+  await page.route('**/api/review/start', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ snapshot }) });
+  });
+
+  await page.route('**/api/review/sessions/s-review', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(snapshot) });
+  });
+
+  await page.goto('/cards');
+  await page.getByRole('button', { name: '復習開始', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Review Card 1' })).toBeVisible();
+  await expect(page.getByText('除外 5 件（上限超過 5 件）')).toBeVisible();
+});

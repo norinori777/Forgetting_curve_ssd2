@@ -127,6 +127,53 @@ describe('Review page', () => {
 
     await user.click(screen.getByRole('button', { name: '次へ' }));
     expect(await screen.findByRole('heading', { name: 'Card 2' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '回答を表示' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /3\s+思い出せた/ })).toBeDisabled();
+  });
+
+  it('locks review controls while an assessment request is in flight', async () => {
+    const user = userEvent.setup();
+    const initialSnapshot = buildSnapshot();
+    const assessedSnapshot = buildSnapshot({
+      canGoNext: true,
+      currentCard: { ...initialSnapshot.currentCard!, currentAssessment: 'remembered' },
+      summary: { ...initialSnapshot.summary, rememberedCount: 1, assessedCount: 1 },
+      remainingCount: 1,
+    });
+
+    let resolveAssessment: (() => void) | undefined;
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.endsWith('/api/review/sessions/s1') && !init?.method) {
+          return Promise.resolve(new Response(JSON.stringify(initialSnapshot), { status: 200 }));
+        }
+        if (url.endsWith('/api/review/sessions/s1/assessment')) {
+          return new Promise<Response>((resolve) => {
+            resolveAssessment = () => resolve(new Response(JSON.stringify(assessedSnapshot), { status: 200 }));
+          });
+        }
+        return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
+      }),
+    );
+
+    renderReview();
+
+    expect(await screen.findByRole('heading', { name: 'Card 1' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '回答を表示' }));
+    await user.click(screen.getByRole('button', { name: /3\s+思い出せた/ }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '回答を表示' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /3\s+思い出せた/ })).toBeDisabled();
+      expect(screen.getByRole('button', { name: '一覧へ戻る' })).toBeDisabled();
+    });
+
+    resolveAssessment?.();
+
+    await waitFor(() => expect(screen.getByRole('button', { name: '次へ' })).toBeEnabled());
   });
 
   it('supports keyboard shortcuts and shows review reason plus session identifier', async () => {
@@ -265,5 +312,39 @@ describe('Review page', () => {
     await user.click(within(retryAlert).getByRole('button', { name: '再試行' }));
 
     expect(await screen.findByRole('heading', { name: 'Card 1' })).toBeInTheDocument();
+  });
+
+  it('shows targetResolution notice when cards were excluded at review start', async () => {
+    const cappedSnapshot = buildSnapshot({
+      totalCount: 200,
+      remainingCount: 200,
+      filterSummary: {
+        ...buildSnapshot().filterSummary,
+        targetResolution: {
+          matchedCount: 205,
+          includedCount: 200,
+          excludedCount: 5,
+          exclusionBreakdown: [{ reason: 'over_limit', count: 5 }],
+        },
+      } as any,
+      summary: {
+        forgotCount: 0,
+        uncertainCount: 0,
+        rememberedCount: 0,
+        perfectCount: 0,
+        assessedCount: 0,
+        totalCount: 200,
+      },
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(cappedSnapshot), { status: 200 })),
+    );
+
+    renderReview();
+
+    expect(await screen.findByRole('heading', { name: 'Card 1' })).toBeInTheDocument();
+    expect(screen.getByText('除外 5 件（上限超過 5 件）')).toBeInTheDocument();
   });
 });

@@ -176,6 +176,10 @@ paths:
   /api/review/start:
     post:
       summary: Create a review session from the current card list filter
+      description: |
+        Resolves the current filter on the server and creates a review session from the
+        ordered result set. At most 200 reviewable cards are included in a session.
+        Any excluded cards are summarized in `snapshot.filterSummary.targetResolution`.
       requestBody:
         required: true
         content:
@@ -192,7 +196,7 @@ paths:
         '400':
           description: Invalid request body
         '404':
-          description: No cards matched the requested filter
+          description: No reviewable cards remained for the requested filter
         '503':
           description: Temporary backend failure before a session snapshot could be created; the client should offer retry or return to the list
   /api/review/sessions/{sessionId}:
@@ -491,6 +495,42 @@ components:
           type: array
           items:
             type: string
+        targetResolution:
+          $ref: '#/components/schemas/ReviewTargetResolution'
+    ReviewTargetResolution:
+      type: object
+      required:
+        - matchedCount
+        - includedCount
+        - excludedCount
+        - exclusionBreakdown
+      properties:
+        matchedCount:
+          type: integer
+          minimum: 0
+        includedCount:
+          type: integer
+          minimum: 0
+          maximum: 200
+        excludedCount:
+          type: integer
+          minimum: 0
+        exclusionBreakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewTargetExclusion'
+    ReviewTargetExclusion:
+      type: object
+      required:
+        - reason
+        - count
+      properties:
+        reason:
+          type: string
+          enum: [over_limit, unavailable]
+        count:
+          type: integer
+          minimum: 1
     ReviewSessionSummary:
       type: object
       required:

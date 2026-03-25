@@ -97,3 +97,23 @@ pnpm test:e2e # 任意
 
 - テスト報告: CI の結果は PR に表示し、失敗時は担当者が修正して再実行する。
 
+## 性能確認（本機能の追加要件）
+
+- review start は synthetic test でも p95 500ms 以内を目安に確認する
+- Review 画面での次カード移動は synthetic test でも 100ms 未満の応答を目安に確認する
+- 性能確認は `tests/perf/` に配置し、通常の unit test と同じコマンドで実行できるようにする
+- 性能確認でも対象件数上限 200 件と start 後の notice 表示が回帰しないことを合わせて確認する
+
+## 手動確認記録（2026-03-23）
+
+- 実 DB に Prisma migration 適用後、localhost の backend / frontend 開発サーバーを起動して確認した
+- カード一覧から `復習開始` を実行し、review session が作成されることを確認した
+- Review 画面で `回答を表示` → `3 思い出せた` → `次へ` を進め、`review_session_cards` の `assessment` / `assessedAt` / `lockedAt` 更新を確認した
+- 4 件の対象カードを最後まで進め、`review_sessions.status = completed`、`currentCardIndex = 4`、`completedAt` 記録ありを確認した
+- 確認時の代表 session:
+  - 作成確認: `1424f0df-8fb6-44a5-a170-a2e85dacc851`
+  - 進行確認: `fedf3b4f-5383-4398-ba47-7a5d5a9e880e`
+  - 完了確認: `8d1de7ab-33b2-4da8-8caf-3c6b74251b50`
+- 補足: schema 変更後は `npx prisma generate` を実行して Prisma Client を再生成しないと review start が `review_temporary_failure` になることを確認した
+
+

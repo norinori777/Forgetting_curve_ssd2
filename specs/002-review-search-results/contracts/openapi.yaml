@@ -1,0 +1,341 @@
+openapi: 3.0.3
+info:
+  title: Search Results Review Start Contract
+  version: '0.1.0'
+paths:
+  /api/review/start:
+    post:
+      summary: Create a review session from the current card-list search result set
+      description: |
+        Accepts the current CardListFilter and resolves the ordered target set on the server.
+        The target set is derived from all cards matching the current search/filter/sort state,
+        not from only the cards currently rendered in the browser.
+        Up to 200 reviewable cards are included in the created session. Any cards excluded because
+        they exceeded the limit or became unavailable are reported through snapshot.filterSummary.targetResolution.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartReviewRequest'
+      responses:
+        '200':
+          description: Review session created from the current search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartReviewResponse'
+        '400':
+          description: Invalid request body
+        '404':
+          description: No reviewable cards remained for the current search result filter
+        '503':
+          description: Temporary backend failure while creating the review session
+  /api/review/sessions/{sessionId}:
+    get:
+      summary: Retrieve the latest review session snapshot
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current review session snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewSessionSnapshot'
+        '404':
+          description: Session not found
+  /api/review/sessions/{sessionId}/assessment:
+    put:
+      summary: Save or replace the assessment for the current review card
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAssessmentRequest'
+      responses:
+        '200':
+          description: Updated review snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewSessionSnapshot'
+        '404':
+          description: Session not found
+        '409':
+          description: Current card is not editable in the active session state
+  /api/review/sessions/{sessionId}/navigation:
+    post:
+      summary: Move to the previous or next review card within the fixed search-result target set
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NavigateReviewRequest'
+      responses:
+        '200':
+          description: Updated review snapshot after navigation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewSessionSnapshot'
+        '404':
+          description: Session not found
+        '409':
+          description: Next navigation requires an assessment on the current card
+components:
+  schemas:
+    StartReviewRequest:
+      type: object
+      required:
+        - filter
+      properties:
+        filter:
+          $ref: '#/components/schemas/CardListFilter'
+    CardListFilter:
+      type: object
+      required:
+        - sort
+        - tagIds
+        - collectionIds
+      properties:
+        q:
+          type: string
+          nullable: true
+        filter:
+          type: string
+          nullable: true
+          enum: [today, overdue, unlearned]
+        sort:
+          type: string
+          enum: [next_review_at, proficiency, created_at]
+        tagIds:
+          type: array
+          items:
+            type: string
+        collectionIds:
+          type: array
+          items:
+            type: string
+    StartReviewResponse:
+      type: object
+      required:
+        - snapshot
+      properties:
+        snapshot:
+          $ref: '#/components/schemas/ReviewSessionSnapshot'
+    ReviewSessionSnapshot:
+      type: object
+      required:
+        - sessionId
+        - status
+        - currentIndex
+        - totalCount
+        - remainingCount
+        - canGoPrev
+        - canGoNext
+        - filterSummary
+        - summary
+      properties:
+        sessionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [in_progress, completed]
+        currentIndex:
+          type: integer
+        totalCount:
+          type: integer
+        remainingCount:
+          type: integer
+        canGoPrev:
+          type: boolean
+        canGoNext:
+          type: boolean
+        filterSummary:
+          $ref: '#/components/schemas/ReviewFilterSummary'
+        currentCard:
+          allOf:
+            - $ref: '#/components/schemas/ReviewCardSnapshot'
+          nullable: true
+        summary:
+          $ref: '#/components/schemas/ReviewSessionSummary'
+    ReviewFilterSummary:
+      type: object
+      required:
+        - sort
+        - tagLabels
+        - collectionLabels
+      properties:
+        q:
+          type: string
+          nullable: true
+        filter:
+          type: string
+          nullable: true
+          enum: [today, overdue, unlearned]
+        sort:
+          type: string
+          enum: [next_review_at, proficiency, created_at]
+        tagLabels:
+          type: array
+          items:
+            type: string
+        collectionLabels:
+          type: array
+          items:
+            type: string
+        targetResolution:
+          $ref: '#/components/schemas/ReviewTargetResolution'
+    ReviewTargetResolution:
+      type: object
+      required:
+        - matchedCount
+        - includedCount
+        - excludedCount
+        - exclusionBreakdown
+      properties:
+        matchedCount:
+          type: integer
+          minimum: 0
+        includedCount:
+          type: integer
+          minimum: 0
+          maximum: 200
+        excludedCount:
+          type: integer
+          minimum: 0
+        exclusionBreakdown:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReviewTargetExclusion'
+    ReviewTargetExclusion:
+      type: object
+      required:
+        - reason
+        - count
+      properties:
+        reason:
+          type: string
+          enum: [over_limit, unavailable]
+        count:
+          type: integer
+          minimum: 1
+    ReviewCardSnapshot:
+      type: object
+      required:
+        - cardId
+        - title
+        - content
+        - tags
+        - reviewReason
+        - currentAssessment
+        - locked
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        content:
+          type: string
+        answer:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        collectionLabel:
+          type: string
+          nullable: true
+        nextReviewAt:
+          type: string
+          format: date-time
+          nullable: true
+        reviewReason:
+          $ref: '#/components/schemas/ReviewReason'
+        currentAssessment:
+          type: string
+          nullable: true
+          enum: [forgot, uncertain, remembered, perfect]
+        locked:
+          type: boolean
+    ReviewReason:
+      type: object
+      required:
+        - label
+      properties:
+        label:
+          type: string
+        detail:
+          type: string
+          nullable: true
+        source:
+          type: string
+          nullable: true
+          enum: [next_review_at, overdue, filter_match, unlearned, manual_selection]
+    ReviewSessionSummary:
+      type: object
+      required:
+        - forgotCount
+        - uncertainCount
+        - rememberedCount
+        - perfectCount
+        - assessedCount
+        - totalCount
+      properties:
+        forgotCount:
+          type: integer
+        uncertainCount:
+          type: integer
+        rememberedCount:
+          type: integer
+        perfectCount:
+          type: integer
+        assessedCount:
+          type: integer
+        totalCount:
+          type: integer
+    UpdateAssessmentRequest:
+      type: object
+      required:
+        - cardId
+        - assessment
+      properties:
+        cardId:
+          type: string
+          format: uuid
+        assessment:
+          type: string
+          enum: [forgot, uncertain, remembered, perfect]
+    NavigateReviewRequest:
+      type: object
+      required:
+        - direction
+      properties:
+        direction:
+          type: string
+          enum: [prev, next]

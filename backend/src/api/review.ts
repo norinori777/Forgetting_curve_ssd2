@@ -5,7 +5,7 @@ import {
   reviewStartRequestSchema,
   reviewUpdateAssessmentRequestSchema,
 } from '../schemas/review.js';
-import { listCards } from '../repositories/cardRepository.js';
+import { resolveReviewTargetsForCardIds, resolveReviewTargetsForFilter } from '../repositories/cardRepository.js';
 import {
   createReviewSession,
   getReviewSessionSnapshot,
@@ -37,26 +37,14 @@ reviewRouter.post('/start', async (req, res) => {
   const { cardIds, filter } = parsed.data;
 
   try {
-    const resolvedCardIds =
-      cardIds && cardIds.length > 0
-        ? cardIds
-        : (
-            await listCards({
-              cursor: undefined,
-              limit: 200,
-              q: filter?.q,
-              tagIds: filter?.tagIds,
-              collectionIds: filter?.collectionIds,
-              filter: filter?.filter,
-              sort: filter?.sort ?? 'next_review_at',
-            })
-          ).items.map((card) => card.id);
+    const resolved = cardIds && cardIds.length > 0 ? await resolveReviewTargetsForCardIds(cardIds) : await resolveReviewTargetsForFilter(filter);
+    const resolvedCardIds = resolved.cardIds;
 
     if (resolvedCardIds.length === 0) {
       return res.status(404).json({ error: 'review_session_has_no_cards' });
     }
 
-    const snapshot = await createReviewSession({ cardIds: resolvedCardIds, filter });
+    const snapshot = await createReviewSession({ cardIds: resolvedCardIds, filter, targetResolution: resolved.targetResolution });
     return res.json({ snapshot });
   } catch (error) {
     return mapReviewError(error, res);
