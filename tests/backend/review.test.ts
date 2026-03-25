@@ -277,6 +277,18 @@ describe('backend review API', () => {
     vi.restoreAllMocks();
   });
 
+  it('starts review from a today filter request used by the home CTA', async () => {
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/review/start')
+      .send({ filter: { filter: 'today', sort: 'next_review_at', tagIds: [], collectionIds: [] } })
+      .expect(200);
+
+    expect(res.body.snapshot.filterSummary.filter).toBe('today');
+    expect(res.body.snapshot.totalCount).toBe(2);
+  });
+
   it('starts review and returns a snapshot with filter labels', async () => {
     const { app } = await import('../../backend/src/index.ts');
 

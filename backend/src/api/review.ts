@@ -1,4 +1,5 @@
 import { Router, type Response } from 'express';
+import type { CardListFilter } from '../domain/cardList.js';
 
 import {
   reviewNavigateRequestSchema,
@@ -15,6 +16,24 @@ import {
 import { ReviewRepositoryError } from '../domain/review.js';
 
 export const reviewRouter = Router();
+
+function normalizeReviewFilter(filter: {
+  q?: string;
+  filter?: 'today' | 'overdue' | 'unlearned';
+  sort?: 'next_review_at' | 'proficiency' | 'created_at';
+  tagIds?: string[];
+  collectionIds?: string[];
+} | undefined): CardListFilter | undefined {
+  if (!filter) return undefined;
+
+  return {
+    q: filter.q,
+    filter: filter.filter,
+    sort: filter.sort ?? 'next_review_at',
+    tagIds: filter.tagIds ?? [],
+    collectionIds: filter.collectionIds ?? [],
+  };
+}
 
 function mapReviewError(error: unknown, res: Response) {
   if (error instanceof ReviewRepositoryError) {
@@ -35,16 +54,24 @@ reviewRouter.post('/start', async (req, res) => {
   }
 
   const { cardIds, filter } = parsed.data;
+  const normalizedFilter = normalizeReviewFilter(filter);
 
   try {
-    const resolved = cardIds && cardIds.length > 0 ? await resolveReviewTargetsForCardIds(cardIds) : await resolveReviewTargetsForFilter(filter);
+    const resolved =
+      cardIds && cardIds.length > 0
+        ? await resolveReviewTargetsForCardIds(cardIds)
+        : await resolveReviewTargetsForFilter(normalizedFilter);
     const resolvedCardIds = resolved.cardIds;
 
     if (resolvedCardIds.length === 0) {
       return res.status(404).json({ error: 'review_session_has_no_cards' });
     }
 
-    const snapshot = await createReviewSession({ cardIds: resolvedCardIds, filter, targetResolution: resolved.targetResolution });
+    const snapshot = await createReviewSession({
+      cardIds: resolvedCardIds,
+      filter: normalizedFilter,
+      targetResolution: resolved.targetResolution,
+    });
     return res.json({ snapshot });
   } catch (error) {
     return mapReviewError(error, res);
