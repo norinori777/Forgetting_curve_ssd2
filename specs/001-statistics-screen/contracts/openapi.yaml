@@ -1,0 +1,264 @@
+openapi: 3.0.3
+info:
+  title: Statistics Screen API Contract
+  version: '0.1.0'
+paths:
+  /api/stats:
+    get:
+      summary: Get the statistics dashboard snapshot for the stats page
+      parameters:
+        - in: query
+          name: range
+          required: true
+          schema:
+            $ref: '#/components/schemas/StatisticsRange'
+          description: Selected statistics range for summary and trend aggregation
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatisticsDashboardResponse'
+        '400':
+          description: Invalid range query
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    enum:
+                      - invalid_stats_range
+        '503':
+          description: Temporary failure while resolving statistics dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - error
+                properties:
+                  error:
+                    type: string
+                    enum:
+                      - stats_temporary_failure
+components:
+  schemas:
+    StatisticsRange:
+      type: string
+      enum:
+        - today
+        - 7d
+        - 30d
+        - all
+    StatisticsDashboardResponse:
+      type: object
+      required:
+        - generatedAt
+        - selectedRange
+        - summary
+        - volumeTrend
+        - tagBreakdown
+        - insights
+        - state
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        selectedRange:
+          $ref: '#/components/schemas/StatisticsRange'
+        summary:
+          $ref: '#/components/schemas/StatisticsSummary'
+        volumeTrend:
+          $ref: '#/components/schemas/TrendSeries'
+        accuracyTrend:
+          allOf:
+            - $ref: '#/components/schemas/TrendSeries'
+          nullable: true
+        tagBreakdown:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/TagBreakdownItem'
+        insights:
+          type: array
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/InsightItem'
+        state:
+          $ref: '#/components/schemas/StatisticsState'
+    StatisticsSummary:
+      type: object
+      required:
+        - totalCardCount
+        - completedReviewCount
+        - streakDays
+      properties:
+        totalCardCount:
+          $ref: '#/components/schemas/SummaryMetric'
+        completedReviewCount:
+          $ref: '#/components/schemas/SummaryMetric'
+        averageAccuracy:
+          allOf:
+            - $ref: '#/components/schemas/SummaryMetric'
+          nullable: true
+        streakDays:
+          $ref: '#/components/schemas/StreakMetric'
+    SummaryMetric:
+      type: object
+      required:
+        - value
+        - unit
+      properties:
+        value:
+          type: number
+          minimum: 0
+        deltaFromPrevious:
+          type: number
+          nullable: true
+        unit:
+          type: string
+          enum:
+            - count
+            - percent
+            - days
+        displayHint:
+          type: string
+          nullable: true
+    StreakMetric:
+      type: object
+      required:
+        - value
+        - unit
+      properties:
+        value:
+          type: integer
+          minimum: 0
+        deltaFromPrevious:
+          type: integer
+          nullable: true
+        unit:
+          type: string
+          enum:
+            - days
+        bestRecordDays:
+          type: integer
+          minimum: 0
+          nullable: true
+        displayHint:
+          type: string
+          nullable: true
+    TrendSeries:
+      type: object
+      required:
+        - metric
+        - bucketUnit
+        - points
+      properties:
+        metric:
+          type: string
+          enum:
+            - completed_reviews
+            - average_accuracy
+        bucketUnit:
+          type: string
+          enum:
+            - hour
+            - day
+            - month
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendPoint'
+    TrendPoint:
+      type: object
+      required:
+        - key
+        - label
+        - value
+        - from
+        - to
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        value:
+          type: number
+          minimum: 0
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+    TagBreakdownItem:
+      type: object
+      required:
+        - tagId
+        - tagName
+        - reviewCount
+        - isWeakest
+      properties:
+        tagId:
+          type: string
+        tagName:
+          type: string
+        reviewCount:
+          type: integer
+          minimum: 0
+        averageAccuracy:
+          type: number
+          minimum: 0
+          maximum: 100
+          nullable: true
+        isWeakest:
+          type: boolean
+    InsightItem:
+      type: object
+      required:
+        - id
+        - kind
+        - message
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum:
+            - trend
+            - focus
+        message:
+          type: string
+        relatedTagId:
+          type: string
+          nullable: true
+    StatisticsState:
+      type: object
+      required:
+        - mode
+        - unavailableSections
+      properties:
+        mode:
+          type: string
+          enum:
+            - ready
+            - empty
+            - partial
+        unavailableSections:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatisticsSectionKey'
+        message:
+          type: string
+          nullable: true
+    StatisticsSectionKey:
+      type: string
+      enum:
+        - accuracyTrend
+        - tagBreakdown
+        - insights

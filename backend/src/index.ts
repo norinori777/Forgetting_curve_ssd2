@@ -10,6 +10,7 @@ import { cardsRouter } from './api/cards.js';
 import { collectionsRouter } from './api/collections.js';
 import { homeRouter } from './api/home.js';
 import { reviewRouter } from './api/review.js';
+import { statsRouter } from './api/stats.js';
 import { tagsRouter } from './api/tags.js';
 
 const moduleDir = dirname(fileURLToPath(import.meta.url));
@@ -27,6 +28,7 @@ app.use(express.json());
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.use('/api/home', homeRouter);
+app.use('/api/stats', statsRouter);
 app.use('/api/cards', cardsRouter);
 app.use('/api/cards/bulk', bulkRouter);
 app.use('/api/tags', tagsRouter);
