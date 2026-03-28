@@ -1,7 +1,8 @@
 import { Router } from 'express';
 
-import { createCardBodySchema, listCardsQuerySchema } from '../schemas/cards.js';
-import { CreateCardRepositoryError, createCard, listCards } from '../repositories/cardRepository.js';
+import { resolveCollectionOwnerId } from '../services/collectionOwnerContext.js';
+import { createCardBodySchema, importCardsBodySchema, listCardsQuerySchema, validateCardImportBodySchema } from '../schemas/cards.js';
+import { CardImportRepositoryError, CreateCardRepositoryError, createCard, importCards, listCards, validateCardImportRows } from '../repositories/cardRepository.js';
 
 export const cardsRouter = Router();
 
@@ -76,5 +77,67 @@ cardsRouter.post('/', async (req, res) => {
       tagCount: parsed.data.tagNames.length,
     });
     return res.status(500).json({ error: 'database_error', message: 'failed_to_persist_card' });
+  }
+});
+
+cardsRouter.post('/import/validate', async (req, res) => {
+  const parsed = validateCardImportBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'invalid_body', details: parsed.error.flatten() });
+  }
+
+  const ownerId = resolveCollectionOwnerId();
+  logApiEvent('info', 'validate-card-import-requested', {
+    ownerId,
+    rowCount: parsed.data.rows.length,
+    headerSkipped: parsed.data.headerSkipped,
+  });
+
+  try {
+    const result = await validateCardImportRows(parsed.data.rows, ownerId, parsed.data.headerSkipped);
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    logApiEvent('error', 'validate-card-import-failed', {
+      ownerId,
+      rowCount: parsed.data.rows.length,
+      headerSkipped: parsed.data.headerSkipped,
+      code: error instanceof Error ? error.name : 'DATABASE_ERROR',
+    });
+    return res.status(500).json({ error: 'database_error', message: 'failed_to_validate_card_import' });
+  }
+});
+
+cardsRouter.post('/import', async (req, res) => {
+  const parsed = importCardsBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: 'invalid_body', details: parsed.error.flatten() });
+  }
+
+  const ownerId = resolveCollectionOwnerId();
+  logApiEvent('info', 'import-cards-requested', {
+    ownerId,
+    rowCount: parsed.data.rows.length,
+    headerSkipped: parsed.data.headerSkipped,
+  });
+
+  try {
+    const result = await importCards(parsed.data.rows, ownerId, parsed.data.headerSkipped);
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    if (error instanceof CardImportRepositoryError && error.code === 'VALIDATION_FAILED') {
+      return res.status(409).json({
+        error: 'validation_failed',
+        message: error.message,
+        details: error.details,
+      });
+    }
+
+    logApiEvent('error', 'import-cards-failed', {
+      ownerId,
+      rowCount: parsed.data.rows.length,
+      headerSkipped: parsed.data.headerSkipped,
+      code: error instanceof CardImportRepositoryError ? error.code : 'DATABASE_ERROR',
+    });
+    return res.status(500).json({ error: 'database_error', message: 'failed_to_import_cards' });
   }
 });

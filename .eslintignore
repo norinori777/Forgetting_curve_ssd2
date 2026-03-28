@@ -2,8 +2,10 @@ node_modules/
 dist/
 build/
 coverage/
-storybook-static/
-test-results/
 playwright-report/
+test-results/
+storybook-static/
+frontend/storybook-static/
+frontend/tsconfig.tsbuildinfo
 *.min.js
-**/storybook-static/
+*.tsbuildinfo

@@ -15,6 +15,24 @@
 | `cardCreate.helper.tagInput` | helper | カンマ区切りで複数入力 | `/cards/create` | タグ入力補助 |
 | `cardCreate.helper.unsavedChanges` | helper | 未保存の入力内容があります。このまま移動すると内容は失われます。 | `/cards/create` | 画面離脱時の注意喚起 |
 
+## card-csv-import
+
+| Key | Category | Default Text | Screens | Notes |
+|-----|----------|--------------|---------|-------|
+| `cardCsvImport.success.imported` | success | {{count}}件のカードを登録しました | `/cards`, `/cards/create` | CSV一括登録成功後にカード一覧で表示するフラッシュメッセージ |
+| `cardCsvImport.error.validateFailed` | error | CSVの検証に失敗しました。内容を確認して再アップロードしてください。 | `/cards/create` | validate API 失敗または row-level business validation 失敗 |
+| `cardCsvImport.error.importFailed` | error | CSVの一括登録に失敗しました。時間をおいて再試行してください。 | `/cards/create` | import API の想定外失敗 |
+| `cardCsvImport.error.unsupportedEncoding` | error | 対応していない文字コードです。UTF-8、UTF-8 BOM、Shift_JIS のいずれかで保存してください。 | `/cards/create` | decode 失敗時 |
+| `cardCsvImport.validation.fileRequired` | validation | CSVファイルを選択してください。 | `/cards/create` | ファイル未選択 |
+| `cardCsvImport.validation.emptyRows` | validation | CSVに登録対象のデータ行がありません。 | `/cards/create` | ヘッダーのみまたは空ファイル |
+| `cardCsvImport.validation.rowLengthMismatch` | validation | 5列のCSV形式で入力してください。回答列、タグ列、コレクション列も省略できません。 | `/cards/create` | 列数不足または過剰 |
+| `cardCsvImport.validation.titleRequired` | validation | タイトルは必須です。 | `/cards/create` | 1列目必須 |
+| `cardCsvImport.validation.contentRequired` | validation | 学習内容は必須です。 | `/cards/create` | 2列目必須 |
+| `cardCsvImport.validation.collectionNotFound` | validation | 指定されたコレクションが見つかりません。 | `/cards/create` | 5列目の collection 名が不一致 |
+| `cardCsvImport.helper.format` | helper | 1列目: タイトル、2列目: 学習内容、3列目: 回答、4列目: タグ、5列目: コレクション。タグはセミコロン区切り、学習内容の改行は \n で表現します。 | `/cards/create` | CSV 形式ガイド |
+| `cardCsvImport.helper.supportedEncoding` | helper | 対応文字コード: UTF-8 / UTF-8 BOM / Shift_JIS | `/cards/create` | 文字コード案内 |
+| `cardCsvImport.helper.importBlocked` | helper | エラーが1件でもある場合は一括登録できません。 | `/cards/create` | import ボタン無効時の補助 |
+
 ## collection-settings
 
 | Key | Category | Default Text | Screens | Notes |

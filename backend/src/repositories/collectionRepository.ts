@@ -34,7 +34,7 @@ export class CollectionRepositoryError extends Error {
   }
 }
 
-function normalizeCollectionName(name: string): string {
+export function normalizeCollectionName(name: string): string {
   return name.trim().toLocaleLowerCase('ja-JP');
 }
 

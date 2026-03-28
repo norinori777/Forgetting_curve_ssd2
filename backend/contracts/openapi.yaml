@@ -324,6 +324,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CreateCardError'
+  /api/cards/import/validate:
+    post:
+      summary: Validate CSV card import rows before executing a transactional import
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateCardImportRequest'
+      responses:
+        '200':
+          description: Validation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateCardImportResponse'
+        '400':
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardImportError'
+        '500':
+          description: Failed to validate import data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardImportError'
+  /api/cards/import:
+    post:
+      summary: Import validated CSV card rows with all-or-nothing persistence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportCardsRequest'
+      responses:
+        '200':
+          description: Cards imported successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportCardsResponse'
+        '400':
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardImportError'
+        '409':
+          description: Validation failed and import was rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardImportError'
+        '500':
+          description: Failed to import cards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardImportError'
   /api/cards/bulk:
     post:
       summary: Execute a bulk action on selected cards
@@ -1184,3 +1246,177 @@ components:
         details:
           type: object
           nullable: true
+    CardImportRow:
+      type: object
+      required:
+        - rowNumber
+        - title
+        - content
+          - answer
+        - tagNames
+      properties:
+        rowNumber:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+        content:
+          type: string
+          answer:
+            type: string
+            nullable: true
+        tagNames:
+          type: array
+          items:
+            type: string
+        collectionName:
+          type: string
+          nullable: true
+    CardImportIssue:
+      type: object
+      required:
+        - scope
+        - rowNumber
+        - code
+        - messageKey
+        - messageText
+      properties:
+        scope:
+          type: string
+          enum: [row]
+        rowNumber:
+          type: integer
+          minimum: 1
+        code:
+          type: string
+          enum: [title_required, content_required, collection_not_found]
+        messageKey:
+          type: string
+        messageText:
+          type: string
+        detail:
+          type: string
+          nullable: true
+    CardImportValidationRow:
+      allOf:
+        - $ref: '#/components/schemas/CardImportRow'
+        - type: object
+          required:
+            - resolvedCollectionId
+            - status
+            - issues
+          properties:
+            resolvedCollectionId:
+              type: string
+              nullable: true
+            status:
+              type: string
+              enum: [valid, invalid]
+            issues:
+              type: array
+              items:
+                $ref: '#/components/schemas/CardImportIssue'
+    CardImportSummary:
+      type: object
+      required:
+        - totalRows
+        - headerSkipped
+        - validRows
+        - invalidRows
+        - canImport
+        - importedRows
+      properties:
+        totalRows:
+          type: integer
+          minimum: 0
+        headerSkipped:
+          type: boolean
+        validRows:
+          type: integer
+          minimum: 0
+        invalidRows:
+          type: integer
+          minimum: 0
+        canImport:
+          type: boolean
+        importedRows:
+          type: integer
+          nullable: true
+    ValidateCardImportRequest:
+      type: object
+      required:
+        - rows
+      properties:
+        headerSkipped:
+          type: boolean
+          default: false
+        rows:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/CardImportRow'
+    ImportCardsRequest:
+      allOf:
+        - $ref: '#/components/schemas/ValidateCardImportRequest'
+    ValidateCardImportResponse:
+      type: object
+      required:
+        - ok
+        - summary
+        - rows
+        - issues
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        summary:
+          $ref: '#/components/schemas/CardImportSummary'
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardImportValidationRow'
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardImportIssue'
+    ImportCardsResponse:
+      type: object
+      required:
+        - ok
+        - importedCount
+        - messageKey
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        importedCount:
+          type: integer
+          minimum: 1
+        messageKey:
+          type: string
+          enum: [cardCsvImport.success.imported]
+    CardImportError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          enum: [invalid_body, validation_failed, database_error]
+        message:
+          type: string
+          nullable: true
+        details:
+          type: object
+          nullable: true
+          properties:
+            summary:
+              $ref: '#/components/schemas/CardImportSummary'
+            rows:
+              type: array
+              items:
+                $ref: '#/components/schemas/CardImportValidationRow'
+            issues:
+              type: array
+              items:
+                $ref: '#/components/schemas/CardImportIssue'

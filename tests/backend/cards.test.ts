@@ -19,7 +19,7 @@ type TagRow = { id: string; name: string };
 
 type CardTagRow = { cardId: string; tagId: string };
 
-type CollectionRow = { id: string; name: string; ownerId: string };
+type CollectionRow = { id: string; name: string; ownerId: string; normalizedName?: string };
 
 type Store = {
   cards: CardRow[];
@@ -157,6 +157,20 @@ function matchWhere(card: CardRow, where: any): boolean {
   return true;
 }
 
+function cloneStore(source: Store): Store {
+  return {
+    cards: source.cards.map((card) => ({
+      ...card,
+      nextReviewAt: new Date(card.nextReviewAt),
+      createdAt: new Date(card.createdAt),
+      updatedAt: new Date(card.updatedAt),
+    })),
+    tags: source.tags.map((tag) => ({ ...tag })),
+    collections: source.collections.map((collection) => ({ ...collection })),
+    cardTags: source.cardTags.map((cardTag) => ({ ...cardTag })),
+  };
+}
+
 function createFakePrisma(getStore: () => Store) {
   const tx = {
     collection: {
@@ -188,6 +202,9 @@ function createFakePrisma(getStore: () => Store) {
     card: {
       create: async (args: any) => {
         const s = getStore();
+        if (args.data.title === 'force-error') {
+          throw new Error('forced create failure');
+        }
         const createdAt = new Date();
         const created: CardRow = {
           id: `card_${s.cards.length + 1}`,
@@ -209,7 +226,16 @@ function createFakePrisma(getStore: () => Store) {
   };
 
   return {
-    $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
+    $transaction: async (callback: (client: typeof tx) => Promise<unknown>) => {
+      const snapshot = cloneStore(getStore());
+
+      try {
+        return await callback(tx);
+      } catch (error) {
+        store = snapshot;
+        throw error;
+      }
+    },
     card: {
       findMany: async (args: any) => {
         const s = getStore();
@@ -285,13 +311,15 @@ function createFakePrisma(getStore: () => Store) {
     collection: {
       findMany: async (args: any) => {
         const s = getStore();
+        const ownerId = args.where?.ownerId;
+        let rows = ownerId ? s.collections.filter((collection) => collection.ownerId === ownerId) : s.collections;
         if (args.where?.name?.contains) {
           const needle = String(args.where.name.contains).toLowerCase();
-          return s.collections
+          return rows
             .filter((c) => c.name.toLowerCase().includes(needle))
-            .slice(0, args.take ?? s.collections.length);
+            .slice(0, args.take ?? rows.length);
         }
-        return s.collections.slice(0, args.take ?? s.collections.length);
+        return rows.slice(0, args.take ?? rows.length);
       },
     },
     cardTag: {
@@ -908,5 +936,142 @@ describe('backend cards API', () => {
 
     errorSpy.mockRestore();
     process.env.NODE_ENV = 'test';
+  });
+
+  it('validates CSV import rows and resolves an existing collection by name', async () => {
+    process.env.NODE_ENV = 'test';
+
+    store.collections = [
+      {
+        id: 'col1',
+        name: 'TOEIC 600',
+        ownerId: '00000000-0000-0000-0000-000000000001',
+        normalizedName: 'toeic 600',
+      },
+    ];
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/cards/import/validate')
+      .send({
+        headerSkipped: true,
+        rows: [
+          {
+            rowNumber: 2,
+            title: '英単語セットA',
+            content: 'photosynthesis = 光合成',
+            answer: '植物が光エネルギーを使って糖を合成するはたらき',
+            tagNames: ['英語', '基礎'],
+            collectionName: 'TOEIC 600',
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(res.body.ok).toBe(true);
+    expect(res.body.summary.canImport).toBe(true);
+    expect(res.body.rows[0]?.answer).toBe('植物が光エネルギーを使って糖を合成するはたらき');
+    expect(res.body.rows[0]?.resolvedCollectionId).toBe('col1');
+    expect(res.body.rows[0]?.status).toBe('valid');
+  });
+
+  it('imports CSV rows and persists answer values when present', async () => {
+    process.env.NODE_ENV = 'test';
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/cards/import')
+      .send({
+        headerSkipped: true,
+        rows: [
+          {
+            rowNumber: 2,
+            title: '英単語セットA',
+            content: 'photosynthesis = 光合成',
+            answer: '植物が光エネルギーを使って糖を合成するはたらき',
+            tagNames: ['英語'],
+            collectionName: null,
+          },
+          {
+            rowNumber: 3,
+            title: '英単語セットB',
+            content: 'cell division = 細胞分裂',
+            answer: null,
+            tagNames: ['生物'],
+            collectionName: null,
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(res.body.ok).toBe(true);
+    expect(res.body.importedCount).toBe(2);
+    expect(store.cards).toHaveLength(2);
+    expect(store.cards[0]?.answer).toBe('植物が光エネルギーを使って糖を合成するはたらき');
+    expect(store.cards[1]?.answer).toBeNull();
+  });
+
+  it('rejects CSV import when a referenced collection does not exist', async () => {
+    process.env.NODE_ENV = 'test';
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    const res = await request(app)
+      .post('/api/cards/import')
+      .send({
+        headerSkipped: true,
+        rows: [
+          {
+            rowNumber: 2,
+            title: '英単語セットA',
+            content: 'photosynthesis = 光合成',
+            answer: null,
+            tagNames: ['英語'],
+            collectionName: '未知コレクション',
+          },
+        ],
+      })
+      .expect(409);
+
+    expect(res.body.error).toBe('validation_failed');
+    expect(res.body.details.summary.canImport).toBe(false);
+    expect(res.body.details.issues[0]?.code).toBe('collection_not_found');
+    expect(store.cards).toHaveLength(0);
+  });
+
+  it('rolls back all imported cards when one row fails during persistence', async () => {
+    process.env.NODE_ENV = 'test';
+
+    const { app } = await import('../../backend/src/index.ts');
+
+    await request(app)
+      .post('/api/cards/import')
+      .send({
+        headerSkipped: true,
+        rows: [
+          {
+            rowNumber: 2,
+            title: '英単語セットA',
+            content: 'photosynthesis = 光合成',
+            answer: '植物が光エネルギーを使って糖を合成するはたらき',
+            tagNames: ['英語'],
+            collectionName: null,
+          },
+          {
+            rowNumber: 3,
+            title: 'force-error',
+            content: 'this row triggers rollback',
+            answer: null,
+            tagNames: ['基礎'],
+            collectionName: null,
+          },
+        ],
+      })
+      .expect(500);
+
+    expect(store.cards).toHaveLength(0);
+    expect(store.cardTags).toHaveLength(0);
   });
 });

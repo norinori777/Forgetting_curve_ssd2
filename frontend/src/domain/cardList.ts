@@ -46,6 +46,7 @@ export type BulkAction = 'archive' | 'delete' | 'addTags' | 'removeTags';
 export type CardListSuccessFlash = {
   messageKey: string;
   createdCardId?: string;
+  importedCount?: number;
 };
 
 export type CardListLocationState = {
