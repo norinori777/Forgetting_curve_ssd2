@@ -2,7 +2,8 @@ import type { Prisma } from '@prisma/client';
 
 import { prisma } from '../db/prisma.js';
 import type { FilterOption } from '../domain/cardList.js';
-import type { CardSortKey, CreateCardBody, CursorPayload, ListCardsQuery } from '../schemas/cards.js';
+import { normalizeCollectionName } from './collectionRepository.js';
+import type { CardImportRow, CardSortKey, CreateCardBody, CursorPayload, ListCardsQuery } from '../schemas/cards.js';
 import { decodeCursor, encodeCursor } from '../schemas/cards.js';
 import { buildCardBaseFilters } from '../services/searchService.js';
 import type { CardListFilter } from '../domain/cardList.js';
@@ -42,6 +43,54 @@ export class CreateCardRepositoryError extends Error {
   constructor(
     public readonly code: 'COLLECTION_NOT_FOUND' | 'DATABASE_ERROR',
     message: string,
+  ) {
+    super(message);
+  }
+}
+
+export type CardImportIssueCode = 'title_required' | 'content_required' | 'collection_not_found';
+
+export type CardImportIssue = {
+  scope: 'row';
+  rowNumber: number;
+  code: CardImportIssueCode;
+  messageKey: string;
+  messageText: string;
+  detail: string | null;
+};
+
+export type CardImportValidationRow = {
+  rowNumber: number;
+  title: string;
+  content: string;
+  answer: string | null;
+  tagNames: string[];
+  collectionName: string | null;
+  resolvedCollectionId: string | null;
+  status: 'valid' | 'invalid';
+  issues: CardImportIssue[];
+};
+
+export type CardImportSummary = {
+  totalRows: number;
+  headerSkipped: boolean;
+  validRows: number;
+  invalidRows: number;
+  canImport: boolean;
+  importedRows: number | null;
+};
+
+export type CardImportValidationResult = {
+  summary: CardImportSummary;
+  rows: CardImportValidationRow[];
+  issues: CardImportIssue[];
+};
+
+export class CardImportRepositoryError extends Error {
+  constructor(
+    public readonly code: 'VALIDATION_FAILED' | 'DATABASE_ERROR',
+    message: string,
+    public readonly details?: CardImportValidationResult,
   ) {
     super(message);
   }
@@ -127,6 +176,224 @@ function toApiCard(card: CardWithTags): ApiCard {
     createdAt: card.createdAt.toISOString(),
     updatedAt: card.updatedAt.toISOString(),
   };
+}
+
+function createCardImportIssue(rowNumber: number, code: CardImportIssueCode, detail: string | null = null): CardImportIssue {
+  const message =
+    code === 'title_required'
+      ? { key: 'cardCsvImport.validation.titleRequired', text: 'タイトルは必須です。' }
+      : code === 'content_required'
+        ? { key: 'cardCsvImport.validation.contentRequired', text: '学習内容は必須です。' }
+        : { key: 'cardCsvImport.validation.collectionNotFound', text: '指定されたコレクションが見つかりません。' };
+
+  return {
+    scope: 'row',
+    rowNumber,
+    code,
+    messageKey: message.key,
+    messageText: message.text,
+    detail,
+  };
+}
+
+function normalizeImportTagNames(tagNames: string[]): string[] {
+  return Array.from(new Set((tagNames ?? []).map((tagName) => tagName.trim()).filter(Boolean)));
+}
+
+function buildImportSummary(rows: CardImportValidationRow[], headerSkipped: boolean, importedRows: number | null = null): CardImportSummary {
+  const invalidRows = rows.filter((row) => row.status === 'invalid').length;
+  const validRows = rows.length - invalidRows;
+
+  return {
+    totalRows: rows.length,
+    headerSkipped,
+    validRows,
+    invalidRows,
+    canImport: rows.length > 0 && invalidRows === 0,
+    importedRows,
+  };
+}
+
+async function resolveImportTagRows(
+  tx: Prisma.TransactionClient,
+  tagNames: string[],
+): Promise<Array<{ id: string; name: string }>> {
+  const tagRows = [] as Array<{ id: string; name: string }>;
+
+  for (const tagName of tagNames) {
+    const tag = await tx.tag.upsert({
+      where: { name: tagName },
+      update: {},
+      create: { name: tagName },
+      select: { id: true, name: true },
+    });
+    tagRows.push(tag);
+  }
+
+  return tagRows;
+}
+
+async function createCardRecord(
+  tx: Prisma.TransactionClient,
+  input: {
+    title: string;
+    content: string;
+    answer?: string | null;
+    collectionId?: string | null;
+    tagNames: string[];
+  },
+  now: Date,
+): Promise<ApiCard> {
+  const createdCard = await tx.card.create({
+    data: {
+      title: input.title.trim(),
+      content: input.content.trim(),
+      answer: input.answer ?? null,
+      collectionId: input.collectionId ?? null,
+      proficiency: 0,
+      nextReviewAt: now,
+      lastCorrectRate: 0,
+      isArchived: false,
+    },
+  });
+
+  const tagRows = await resolveImportTagRows(tx, normalizeImportTagNames(input.tagNames));
+
+  if (tagRows.length > 0) {
+    await tx.cardTag.createMany({
+      data: tagRows.map((tag) => ({ cardId: createdCard.id, tagId: tag.id })),
+      skipDuplicates: true,
+    });
+  }
+
+  return {
+    id: createdCard.id,
+    title: createdCard.title,
+    content: createdCard.content,
+    answer: createdCard.answer,
+    tags: tagRows.map((tag) => tag.name),
+    collectionId: createdCard.collectionId,
+    proficiency: createdCard.proficiency,
+    nextReviewAt: createdCard.nextReviewAt.toISOString(),
+    lastCorrectRate: createdCard.lastCorrectRate,
+    isArchived: createdCard.isArchived,
+    createdAt: createdCard.createdAt.toISOString(),
+    updatedAt: createdCard.updatedAt.toISOString(),
+  } satisfies ApiCard;
+}
+
+export async function validateCardImportRows(
+  rows: CardImportRow[],
+  ownerId: string,
+  headerSkipped = false,
+): Promise<CardImportValidationResult> {
+  const collections = await prisma.collection.findMany({
+    where: { ownerId },
+    select: { id: true, name: true, normalizedName: true },
+  });
+
+  const collectionMap = new Map(
+    collections.map((collection) => [normalizeCollectionName(collection.normalizedName || collection.name), collection]),
+  );
+
+  const validatedRows = rows.map<CardImportValidationRow>((row) => {
+    const issues: CardImportIssue[] = [];
+    const title = row.title.trim();
+    const content = row.content.trim();
+    const answer = row.answer?.trim() ? row.answer.trim() : null;
+    const tagNames = normalizeImportTagNames(row.tagNames ?? []);
+    const collectionName = row.collectionName?.trim() ?? null;
+    let resolvedCollectionId: string | null = null;
+
+    if (title.length === 0) {
+      issues.push(createCardImportIssue(row.rowNumber, 'title_required'));
+    }
+
+    if (content.length === 0) {
+      issues.push(createCardImportIssue(row.rowNumber, 'content_required'));
+    }
+
+    if (collectionName) {
+      const matchedCollection = collectionMap.get(normalizeCollectionName(collectionName));
+      if (!matchedCollection) {
+        issues.push(createCardImportIssue(row.rowNumber, 'collection_not_found', collectionName));
+      } else {
+        resolvedCollectionId = matchedCollection.id;
+      }
+    }
+
+    return {
+      rowNumber: row.rowNumber,
+      title,
+      content,
+      answer,
+      tagNames,
+      collectionName,
+      resolvedCollectionId,
+      status: issues.length > 0 ? 'invalid' : 'valid',
+      issues,
+    };
+  });
+
+  return {
+    summary: buildImportSummary(validatedRows, headerSkipped),
+    rows: validatedRows,
+    issues: validatedRows.flatMap((row) => row.issues),
+  };
+}
+
+export async function importCards(
+  rows: CardImportRow[],
+  ownerId: string,
+  headerSkipped = false,
+): Promise<{ importedCount: number; messageKey: string }> {
+  const validation = await validateCardImportRows(rows, ownerId, headerSkipped);
+  if (!validation.summary.canImport) {
+    throw new CardImportRepositoryError('VALIDATION_FAILED', 'card_import_validation_failed', validation);
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const now = new Date();
+
+      for (const row of validation.rows) {
+        await createCardRecord(
+          tx,
+          {
+            title: row.title,
+            content: row.content,
+            answer: row.answer,
+            collectionId: row.resolvedCollectionId,
+            tagNames: row.tagNames,
+          },
+          now,
+        );
+      }
+    });
+
+    logRepositoryEvent('info', 'import-cards-succeeded', {
+      ownerId,
+      rowCount: validation.summary.totalRows,
+      headerSkipped,
+    });
+
+    return {
+      importedCount: validation.summary.totalRows,
+      messageKey: 'cardCsvImport.success.imported',
+    };
+  } catch (error) {
+    if (error instanceof CardImportRepositoryError) {
+      throw error;
+    }
+
+    logRepositoryEvent('error', 'import-cards-failed', {
+      ownerId,
+      rowCount: validation.summary.totalRows,
+      headerSkipped,
+      message: error instanceof Error ? error.message : 'unknown error',
+    });
+    throw new CardImportRepositoryError('DATABASE_ERROR', 'failed_to_import_cards');
+  }
 }
 
 export async function listCards(query: ListCardsQuery): Promise<{ items: ApiCard[]; nextCursor?: string }> {
@@ -311,7 +578,7 @@ export async function searchCollectionOptions(q?: string, limit = 20): Promise<F
 }
 
 export async function createCard(input: CreateCardBody): Promise<ApiCard> {
-  const normalizedTagNames = Array.from(new Set((input.tagNames ?? []).map((tagName) => tagName.trim()).filter(Boolean)));
+  const normalizedTagNames = normalizeImportTagNames(input.tagNames ?? []);
   const now = new Date();
 
   try {
@@ -327,58 +594,26 @@ export async function createCard(input: CreateCardBody): Promise<ApiCard> {
         }
       }
 
-      const createdCard = await tx.card.create({
-        data: {
-          title: input.title.trim(),
-          content: input.content.trim(),
+      const card = await createCardRecord(
+        tx,
+        {
+          title: input.title,
+          content: input.content,
           answer: input.answer ?? null,
           collectionId: input.collectionId ?? null,
-          proficiency: 0,
-          nextReviewAt: now,
-          lastCorrectRate: 0,
-          isArchived: false,
+          tagNames: normalizedTagNames,
         },
-      });
-
-      const tagRows = [] as Array<{ id: string; name: string }>;
-      for (const tagName of normalizedTagNames) {
-        const tag = await tx.tag.upsert({
-          where: { name: tagName },
-          update: {},
-          create: { name: tagName },
-          select: { id: true, name: true },
-        });
-        tagRows.push(tag);
-      }
-
-      if (tagRows.length > 0) {
-        await tx.cardTag.createMany({
-          data: tagRows.map((tag) => ({ cardId: createdCard.id, tagId: tag.id })),
-          skipDuplicates: true,
-        });
-      }
+        now,
+      );
 
       logRepositoryEvent('info', 'create-card-succeeded', {
-        cardId: createdCard.id,
-        tagCount: tagRows.length,
-        hasAnswer: createdCard.answer !== null,
+        cardId: card.id,
+        tagCount: card.tags.length,
+        hasAnswer: card.answer !== null,
         hasCollection: Boolean(input.collectionId),
       });
 
-      return {
-        id: createdCard.id,
-        title: createdCard.title,
-        content: createdCard.content,
-        answer: createdCard.answer,
-        tags: tagRows.map((tag) => tag.name),
-        collectionId: createdCard.collectionId,
-        proficiency: createdCard.proficiency,
-        nextReviewAt: createdCard.nextReviewAt.toISOString(),
-        lastCorrectRate: createdCard.lastCorrectRate,
-        isArchived: createdCard.isArchived,
-        createdAt: createdCard.createdAt.toISOString(),
-        updatedAt: createdCard.updatedAt.toISOString(),
-      } satisfies ApiCard;
+      return card;
     });
 
     return result;

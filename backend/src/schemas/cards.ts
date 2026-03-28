@@ -18,6 +18,15 @@ function normalizeOptionalAnswer(value: unknown): string | null | undefined {
   return value.trim().length === 0 ? null : value;
 }
 
+function normalizeOptionalCollectionName(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string') return value as never;
+
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+}
+
 export const cardSortKeySchema = z
   .enum(['next_review_at', 'proficiency', 'created_at'])
   .default('next_review_at');
@@ -40,9 +49,28 @@ export const createCardBodySchema = z.object({
   collectionId: z.string().uuid().nullable().optional(),
 });
 
+export const cardImportRowSchema = z.object({
+  rowNumber: z.number().int().min(1),
+  title: z.string(),
+  content: z.string(),
+  answer: z.preprocess(normalizeOptionalAnswer, z.string().nullable()),
+  tagNames: z.array(z.string().trim().min(1)).default([]),
+  collectionName: z.preprocess(normalizeOptionalCollectionName, z.string().trim().min(1).nullable().optional()),
+});
+
+export const validateCardImportBodySchema = z.object({
+  headerSkipped: z.boolean().default(false),
+  rows: z.array(cardImportRowSchema).min(1),
+});
+
+export const importCardsBodySchema = validateCardImportBodySchema;
+
 export type CardSortKey = z.infer<typeof cardSortKeySchema>;
 export type ListCardsQuery = z.infer<typeof listCardsQuerySchema>;
 export type CreateCardBody = z.infer<typeof createCardBodySchema>;
+export type CardImportRow = z.infer<typeof cardImportRowSchema>;
+export type ValidateCardImportBody = z.infer<typeof validateCardImportBodySchema>;
+export type ImportCardsBody = z.infer<typeof importCardsBodySchema>;
 
 export type CursorPayload =
   | {

@@ -22,6 +22,7 @@ import {
 import { FilterSelector } from '../components/uniqueParts/FilterSelector';
 import { useSelection } from '../hooks/useSelection';
 import { cardCreateMessages } from '../domain/cardCreate';
+import { cardCsvImportMessages, formatCardCsvImportSuccess } from '../domain/cardCsvImport';
 import { buildReviewSessionPath } from '../utils/routes/reviewSession';
 import { cacheReviewSessionSnapshot, clearPendingReviewStartFilter, setActiveReviewSessionId, setPendingReviewStartFilter } from '../utils/reviewSessionStorage';
 
@@ -130,7 +131,11 @@ export function CardList() {
     if (!flash) return;
 
     const nextMessage =
-      flash.messageKey === cardCreateMessages.successCreated.key ? cardCreateMessages.successCreated.text : flash.messageKey;
+      flash.messageKey === cardCreateMessages.successCreated.key
+        ? cardCreateMessages.successCreated.text
+        : flash.messageKey === cardCsvImportMessages.successImported.key
+          ? formatCardCsvImportSuccess(flash.importedCount ?? 0)
+          : flash.messageKey;
 
     setSuccessMessage(nextMessage);
     void navigate(location.pathname, { replace: true, state: null });
