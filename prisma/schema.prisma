@@ -42,15 +42,18 @@ model Tag {
 }
 
 model Collection {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  ownerId   String   @db.Uuid @map("owner_id")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid()) @db.Uuid
+  name           String
+  normalizedName String   @map("normalized_name")
+  description    String   @default("")
+  ownerId        String   @db.Uuid @map("owner_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  cards     Card[]
+  cards          Card[]
 
   @@index([ownerId])
+  @@unique([ownerId, normalizedName])
   @@map("collections")
 }
 

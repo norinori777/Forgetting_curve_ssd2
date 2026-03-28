@@ -1,0 +1,223 @@
+openapi: 3.0.3
+info:
+  title: Collection Settings Management API Contract
+  version: '0.1.0'
+paths:
+  /api/collections/manage:
+    get:
+      summary: List collections for settings management
+      description: |
+        Returns the collection management read model used by the settings page.
+        This endpoint is separate from GET /api/collections, which remains the
+        lightweight option-search endpoint used by filters and card creation.
+      responses:
+        '200':
+          description: Collection management list fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListManagedCollectionsResponse'
+    post:
+      summary: Create a collection from settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCollectionRequest'
+      responses:
+        '200':
+          description: Collection created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationResponse'
+        '400':
+          description: Invalid request payload or duplicate collection name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+        '500':
+          description: Failed to persist collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+  /api/collections/manage/{collectionId}:
+    patch:
+      summary: Update an existing collection from the edit modal
+      parameters:
+        - in: path
+          name: collectionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCollectionRequest'
+      responses:
+        '200':
+          description: Collection updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationResponse'
+        '400':
+          description: Invalid request payload or duplicate collection name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+        '404':
+          description: Collection not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+        '500':
+          description: Failed to persist collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+    delete:
+      summary: Delete a collection when it no longer owns cards
+      parameters:
+        - in: path
+          name: collectionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Collection deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCollectionResponse'
+        '404':
+          description: Collection not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+        '409':
+          description: Collection cannot be deleted because cards still reference it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+        '500':
+          description: Failed to delete collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+components:
+  schemas:
+    ListManagedCollectionsResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManagedCollection'
+    CreateCollectionRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Collection display name entered on the settings page
+        description:
+          type: string
+          nullable: true
+          description: Optional note to distinguish collections in settings
+    UpdateCollectionRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          nullable: true
+    CollectionMutationResponse:
+      type: object
+      required:
+        - ok
+        - collection
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        collection:
+          $ref: '#/components/schemas/ManagedCollection'
+    DeleteCollectionResponse:
+      type: object
+      required:
+        - ok
+        - deletedId
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        deletedId:
+          type: string
+          format: uuid
+    CollectionMutationError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          enum: [invalid_body, duplicate_name, not_found, collection_in_use, database_error]
+        message:
+          type: string
+          nullable: true
+        details:
+          type: object
+          nullable: true
+    ManagedCollection:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - cardCount
+        - updatedAt
+        - canDelete
+        - deleteBlockedReason
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        cardCount:
+          type: integer
+          minimum: 0
+        updatedAt:
+          type: string
+          format: date-time
+        canDelete:
+          type: boolean
+        deleteBlockedReason:
+          type: string
+          nullable: true

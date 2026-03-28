@@ -121,6 +121,120 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/FilterOption'
+  /api/collections/manage:
+    get:
+      summary: List collections for settings management
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListManagedCollectionsResponse'
+        '500':
+          description: Failed to resolve collection management data
+    post:
+      summary: Create a managed collection from the settings page
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCollectionRequest'
+      responses:
+        '200':
+          description: Collection created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationResponse'
+        '400':
+          description: Invalid request payload or duplicate collection name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+        '500':
+          description: Failed to persist collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+  /api/collections/manage/{collectionId}:
+    patch:
+      summary: Update a managed collection from the settings edit modal
+      parameters:
+        - in: path
+          name: collectionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCollectionRequest'
+      responses:
+        '200':
+          description: Collection updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationResponse'
+        '400':
+          description: Invalid request payload or duplicate collection name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+        '404':
+          description: Collection not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+        '500':
+          description: Failed to persist collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+    delete:
+      summary: Delete a managed collection when no cards reference it
+      parameters:
+        - in: path
+          name: collectionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Collection deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCollectionResponse'
+        '404':
+          description: Collection not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+        '409':
+          description: Collection cannot be deleted because cards still reference it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
+        '500':
+          description: Failed to delete collection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectionMutationError'
   /api/cards:
     get:
       summary: List non-archived cards with cursor pagination, filter state, and optional answer text
@@ -693,6 +807,97 @@ components:
           type: string
           nullable: true
           enum: [name, alias, null]
+    ManagedCollection:
+      type: object
+      required:
+        - id
+        - name
+        - cardCount
+        - updatedAt
+        - canDelete
+        - deleteBlockedReason
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        cardCount:
+          type: integer
+          minimum: 0
+        updatedAt:
+          type: string
+          format: date-time
+        canDelete:
+          type: boolean
+        deleteBlockedReason:
+          type: string
+          nullable: true
+    ListManagedCollectionsResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManagedCollection'
+    CreateCollectionRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        description:
+          type: string
+          nullable: true
+          maxLength: 240
+    UpdateCollectionRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateCollectionRequest'
+    CollectionMutationResponse:
+      type: object
+      required:
+        - ok
+        - collection
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        collection:
+          $ref: '#/components/schemas/ManagedCollection'
+    DeleteCollectionResponse:
+      type: object
+      required:
+        - ok
+        - deletedId
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+        deletedId:
+          type: string
+          format: uuid
+    CollectionMutationError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          enum: [invalid_body, duplicate_name, not_found, collection_in_use, database_error]
+        message:
+          type: string
+          nullable: true
+        details:
+          type: object
+          nullable: true
     CardListFilter:
       type: object
       properties:
