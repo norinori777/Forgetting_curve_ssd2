@@ -2,12 +2,12 @@ node_modules/
 dist/
 build/
 coverage/
-playwright-report/
-test-results/
 storybook-static/
-frontend/storybook-static/
-frontend/tsconfig.tsbuildinfo
+test-results/
+playwright-report/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+frontend/storybook-static/
+frontend/tsconfig.tsbuildinfo
 *.tsbuildinfo

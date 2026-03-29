@@ -37,6 +37,17 @@ describe('CardList states', () => {
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
+        if (url.includes('/api/home')) {
+          return new Response(
+            JSON.stringify({
+              generatedAt: '2026-03-26T10:00:00.000Z',
+              summary: { todayDueCount: 0, overdueCount: 0, unlearnedCount: 0, streakDays: 0 },
+              recentActivities: [],
+              state: { firstUse: false, noReviewToday: true },
+            }),
+            { status: 200 },
+          );
+        }
         if (url.includes('/api/cards')) {
           return new Response(JSON.stringify({ items: [], nextCursor: undefined }), { status: 200 });
         }
@@ -95,9 +106,7 @@ describe('CardList states', () => {
     });
   });
 
-  it('renders home first and navigates to /cards within the shared layout', async () => {
-    const user = userEvent.setup();
-
+  it('renders /cards within the shared layout without a breadcrumb region', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
@@ -110,18 +119,14 @@ describe('CardList states', () => {
     );
 
     render(
-      <MemoryRouter initialEntries={['/']}>
+      <MemoryRouter initialEntries={['/cards']}>
         <App />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { name: 'ホーム' })).toBeInTheDocument();
-    expect(screen.getByLabelText('パンくず')).toHaveTextContent('ホーム');
-
-    await user.click(screen.getByRole('link', { name: 'カード一覧' }));
-
     expect(await screen.findByRole('heading', { name: 'カード一覧' })).toBeInTheDocument();
-    expect(screen.getByLabelText('パンくず')).toHaveTextContent('カード一覧');
+    expect(screen.queryByLabelText('パンくず')).not.toBeInTheDocument();
+    expect(within(screen.getByLabelText('トップレベルナビゲーション')).queryByRole('link', { name: 'ホーム', exact: true })).not.toBeInTheDocument();
   });
 
   it('navigates to create page from header and cards list CTA', async () => {

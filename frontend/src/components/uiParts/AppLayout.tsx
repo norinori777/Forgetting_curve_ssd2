@@ -1,6 +1,6 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 
-import { resolveTopLevelPage, topLevelPages } from '../../utils/routes/topLevelPages';
+import { homePage, topLevelNavPages } from '../../utils/routes/topLevelPages';
 
 function navLinkClassName(isActive: boolean): string {
   return [
@@ -10,35 +10,35 @@ function navLinkClassName(isActive: boolean): string {
 }
 
 export function AppLayout() {
-  const location = useLocation();
-  const currentPage = resolveTopLevelPage(location.pathname);
-  const breadcrumbText = location.pathname === '/' ? 'ホーム' : `ホーム > ${currentPage.label}`;
-
   return (
     <div className="min-h-screen bg-surface-base text-text-primary">
       <header className="fixed inset-x-0 top-0 z-50 border-b border-border-subtle bg-surface-panel/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4 md:px-8">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand-primary">Forgetting Curve</p>
-              <p className="mt-1 text-2xl font-semibold text-text-primary">学習カードアプリ</p>
-            </div>
-            <nav aria-label="トップレベルナビゲーション" className="flex flex-wrap gap-2">
-              {topLevelPages.map((page) => (
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3 md:px-8 md:py-4">
+          <Link
+            to={homePage.path}
+            aria-label="ホームへ移動"
+            className="inline-flex min-w-0 items-center gap-3 rounded-[24px] px-1 py-1 transition hover:bg-surface-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
+          >
+            <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[18px] bg-brand-primary/12 text-sm font-semibold uppercase tracking-[0.16em] text-brand-primary">
+              FC
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs font-semibold uppercase tracking-[0.2em] text-brand-primary">Forgetting Curve</span>
+              <span className="block truncate text-lg font-semibold text-text-primary md:text-xl">学習カードアプリ</span>
+            </span>
+          </Link>
+
+          <nav aria-label="トップレベルナビゲーション" className="flex flex-wrap items-center gap-2 md:justify-end">
+            {topLevelNavPages.map((page) => (
                 <NavLink key={page.path} to={page.path} className={({ isActive }) => navLinkClassName(isActive)} end>
                   {page.label}
                 </NavLink>
               ))}
-            </nav>
-          </div>
-
-          <div aria-label="パンくず" className="rounded-[20px] bg-surface-base px-4 py-3 text-sm text-text-secondary">
-            <span className="font-medium text-text-primary">{breadcrumbText}</span>
-          </div>
+          </nav>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-12 pt-40 md:px-8 md:pt-44">
+      <main className="mx-auto max-w-6xl px-4 pb-12 pt-28 md:px-8 md:pt-32">
         <Outlet />
       </main>
 
