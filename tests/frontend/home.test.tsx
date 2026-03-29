@@ -174,11 +174,13 @@ describe('Home page', () => {
     await user.click(await screen.findByRole('link', { name: 'カード一覧' }));
     expect(await screen.findByRole('heading', { name: 'カード一覧' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('link', { name: 'ホーム' }));
+    expect(screen.queryByRole('link', { name: 'ホーム' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('link', { name: 'ホームへ移動' }));
     await user.click(await screen.findByRole('link', { name: '学習カード登録' }));
     expect(await screen.findByRole('heading', { name: '学習カード登録' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('link', { name: 'ホーム' }));
+    await user.click(screen.getByRole('link', { name: 'ホームへ移動' }));
     await user.click(await screen.findByRole('link', { name: '設定' }));
     expect(await screen.findByRole('heading', { name: '設定' })).toBeInTheDocument();
   });

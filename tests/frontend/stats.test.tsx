@@ -110,6 +110,9 @@ describe('Stats page', () => {
     expect(await screen.findByRole('heading', { name: '統計' })).toBeInTheDocument();
     expect(await screen.findByTestId('stats-summary-total-cards')).toHaveTextContent('248');
     expect(fetchMock).toHaveBeenCalledWith('/api/stats?range=7d');
+
+    await user.click(screen.getByRole('link', { name: 'ホームへ移動' }));
+    expect(await screen.findByRole('heading', { name: 'ホーム' })).toBeInTheDocument();
   });
 
   it('switches range tabs and updates the rendered trends', async () => {

@@ -80,9 +80,65 @@ test('shows the home dashboard and starts today review', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('home-summary-today')).toHaveText('3');
   await expect(page.getByText('3件の復習を開始')).toBeVisible();
+  await expect(page.getByLabel('トップレベルナビゲーション').getByRole('link', { name: 'ホーム', exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('パンくず')).toHaveCount(0);
 
   await page.getByRole('button', { name: '復習を始める' }).click();
   await expect(page.getByRole('heading', { name: 'Home Review' })).toBeVisible();
+});
+
+test('uses the brand region as the home link across top-level routes', async ({ page }) => {
+  await page.route('**/api/home', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(buildDashboard()) });
+  });
+
+  await page.route('**/api/stats?range=7d', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        generatedAt: '2026-03-28T12:00:00.000Z',
+        selectedRange: '7d',
+        summary: {
+          totalCardCount: { value: 10, deltaFromPrevious: 1, unit: 'count', displayHint: '前期間比 +1' },
+          completedReviewCount: { value: 4, deltaFromPrevious: 1, unit: 'count', displayHint: '前期間比 +1' },
+          averageAccuracy: { value: 88, deltaFromPrevious: 2, unit: 'percent', displayHint: '前期間比 +2pt' },
+          streakDays: { value: 4, deltaFromPrevious: null, unit: 'days', bestRecordDays: 5, displayHint: '最高記録 5日' },
+        },
+        volumeTrend: { metric: 'completed_reviews', bucketUnit: 'day', points: [] },
+        accuracyTrend: { metric: 'average_accuracy', bucketUnit: 'day', points: [] },
+        tagBreakdown: [],
+        insights: [],
+        state: { mode: 'ready', unavailableSections: [], message: null },
+      }),
+    });
+  });
+
+  await page.goto('/stats');
+  await expect(page.getByRole('heading', { name: '統計', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'ホームへ移動' }).click();
+  await expect(page.getByRole('heading', { name: 'ホーム', exact: true })).toBeVisible();
+});
+
+test('keeps compact navigation reachable on mobile width', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+
+  await page.route('**/api/home', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(buildDashboard()) });
+  });
+
+  await page.goto('/');
+
+  const nav = page.getByLabel('トップレベルナビゲーション');
+  await expect(nav.getByRole('link', { name: '学習カード登録' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'カード一覧' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'ホームへ移動' })).toBeVisible();
+
+  await nav.getByRole('link', { name: '学習カード登録' }).click();
+  await expect(page.getByRole('heading', { name: '学習カード登録', exact: true })).toBeVisible();
+
+  await page.getByRole('link', { name: 'ホームへ移動' }).click();
+  await expect(page.getByRole('heading', { name: 'ホーム', exact: true })).toBeVisible();
 });
 
 test('shows first-use guidance when there are no cards', async ({ page }) => {
@@ -119,7 +175,7 @@ test('shows fetch failure and recovers on retry', async ({ page }) => {
   });
 
   await page.goto('/');
-  await expect(page.getByText('ホーム情報の取得に失敗しました。')).toBeVisible();
+  await expect(page.getByRole('button', { name: '再試行' })).toBeVisible();
   await page.getByRole('button', { name: '再試行' }).click();
   await expect(page.getByText('今日の復習対象はありません。')).toBeVisible();
 });

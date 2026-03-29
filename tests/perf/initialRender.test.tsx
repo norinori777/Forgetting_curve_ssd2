@@ -38,6 +38,8 @@ describe('SC-002: initial render performance (synthetic)', () => {
     );
 
     await screen.findByRole('heading', { name: 'カード一覧' });
+    expect(screen.queryByLabelText('パンくず')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'ホームへ移動' })).toBeInTheDocument();
     const end = performance.now();
 
     expect(end - start).toBeLessThan(2000);
